@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Users, Shield, PenTool, History, TrendingDown, Award } from "lucide-react"
+import { Home, Users, PenTool, History, TrendingDown } from "lucide-react"
 
 const mobileItems = [
   { href: "/", label: "Início", icon: Home },

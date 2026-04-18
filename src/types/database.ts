@@ -42,3 +42,22 @@ export type Training = {
   status: 'Válido' | 'Vencendo' | 'Vencido';
   created_at?: string;
 };
+
+export type DeliveryWithRelations = Delivery & {
+  employee?: {
+    full_name: string;
+    cpf: string;
+  };
+  ppe?: {
+    name: string;
+    ca_number: string;
+    cost?: number;
+  };
+};
+
+export type TrainingWithRelations = Training & {
+  employee?: {
+    full_name: string;
+    cpf: string;
+  };
+};

@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { History, Download, ShieldCheck, Search, Loader2, ExternalLink } from "lucide-react"
+import { History, Download, ShieldCheck, Search, Loader2 } from "lucide-react"
 import { api } from "@/services/api"
+import { DeliveryWithRelations } from "@/types/database"
 
 export default function HistoryPage() {
-  const [records, setRecords] = useState<any[]>([])
+  const [records, setRecords] = useState<DeliveryWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
 

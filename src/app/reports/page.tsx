@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { TrendingDown, Download, BarChart3, PieChart, ShieldCheck, Loader2 } from "lucide-react"
 import { api } from "@/services/api"
-import { format, startOfMonth, isAfter } from "date-fns"
+import { startOfMonth, isAfter } from "date-fns"
+import { DeliveryWithRelations } from "@/types/database"
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
@@ -18,7 +19,7 @@ export default function ReportsPage() {
     async function loadReports() {
       try {
         setLoading(true)
-        const [empData, ppeData, deliveryData, trainingData] = await Promise.all([
+        const [, ppeData, deliveryData, trainingData] = await Promise.all([
           api.getEmployees(),
           api.getPpes(),
           api.getDeliveries(),
@@ -27,7 +28,7 @@ export default function ReportsPage() {
 
         // 1. Cálculo de Investimento do Mês
         const monthStart = startOfMonth(new Date())
-        const monthDeliveries = (deliveryData as any[]).filter(d => isAfter(new Date(d.delivery_date), monthStart))
+        const monthDeliveries = deliveryData.filter(d => isAfter(new Date(d.delivery_date), monthStart))
         const monthTotal = monthDeliveries.reduce((acc, d) => acc + (d.ppe?.cost || 0), 0)
 
         // 2. CAs Críticos (Vencendo nos próximos 90 dias)

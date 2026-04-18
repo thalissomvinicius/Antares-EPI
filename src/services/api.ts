@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { Employee, PPE, Delivery, Training } from "@/types/database";
+import { Employee, PPE, Delivery, Training, DeliveryWithRelations, TrainingWithRelations } from "@/types/database";
 
 export const api = {
   // --- Colaboradores ---
@@ -51,12 +51,12 @@ export const api = {
       .select(`
         *,
         employee:employees(full_name, cpf),
-        ppe:ppes(name, ca_number)
+        ppe:ppes(name, ca_number, cost)
       `)
       .order('delivery_date', { ascending: false });
     
     if (error) throw error;
-    return data;
+    return data as DeliveryWithRelations[];
   },
 
   async saveDelivery(delivery: Omit<Delivery, 'id' | 'created_at' | 'delivery_date'>, signatureFile?: File) {
@@ -104,7 +104,7 @@ export const api = {
       .order('completion_date', { ascending: false });
     
     if (error) throw error;
-    return data;
+    return data as TrainingWithRelations[];
   },
 
   async addTraining(training: Omit<Training, 'id' | 'created_at'>) {

@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react"
 import { CheckCircle2, Award, Calendar, Search, Plus, X, Loader2 } from "lucide-react"
 import { api } from "@/services/api"
-import { Employee, Training } from "@/types/database"
+import { Employee, TrainingWithRelations } from "@/types/database"
 import { format, addYears } from "date-fns"
 
 export default function TrainingPage() {
-  const [trainings, setTrainings] = useState<any[]>([])
+  const [trainings, setTrainings] = useState<TrainingWithRelations[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -39,7 +39,10 @@ export default function TrainingPage() {
   }
 
   useEffect(() => {
-    loadData()
+    const fetchInitialData = async () => {
+        await loadData()
+    }
+    fetchInitialData()
   }, [])
 
   const handleAddTraining = async (e: React.FormEvent) => {
@@ -186,10 +189,12 @@ export default function TrainingPage() {
             
             <form onSubmit={handleAddTraining} className="p-8 space-y-5">
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Colaborador</label>
+                <label id="label-colaborador" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Colaborador</label>
                 <select 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-[#8B1A1A] transition-all font-bold"
                   value={formData.employee_id}
+                  title="Selecionar Colaborador"
+                  aria-labelledby="label-colaborador"
                   onChange={(e) => setFormData({...formData, employee_id: e.target.value})}
                 >
                   {employees.map(emp => (
@@ -199,10 +204,12 @@ export default function TrainingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Treinamento</label>
+                <label id="label-treinamento" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Treinamento</label>
                 <select 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-[#8B1A1A] transition-all font-bold"
                   value={formData.training_name}
+                  title="Tipo de Treinamento"
+                  aria-labelledby="label-treinamento"
                   onChange={(e) => setFormData({...formData, training_name: e.target.value})}
                 >
                   <option>Uso e Guarda de EPI (NR-06)</option>
@@ -213,10 +220,12 @@ export default function TrainingPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Realização</label>
+                <label id="label-data" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Realização</label>
                 <input 
                   type="date" 
                   value={formData.completion_date}
+                  title="Data de Realização"
+                  aria-labelledby="label-data"
                   onChange={(e) => setFormData({...formData, completion_date: e.target.value})}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-[#8B1A1A] transition-all font-bold" 
                 />

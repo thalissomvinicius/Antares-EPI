@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, AlertTriangle, PackageCheck, TrendingDown, ArrowRight, ShieldCheck, Loader2 } from "lucide-react"
+import { Users, AlertTriangle, PackageCheck, ArrowRight, ShieldCheck, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/services/api"
-import { Employee, PPE } from "@/types/database"
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
