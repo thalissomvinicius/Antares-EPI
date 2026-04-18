@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import SignatureCanvas from "react-signature-canvas"
-import { CheckCircle2, ShieldAlert, X, FileDown, Loader2 } from "lucide-react"
+import { CheckCircle2, FileDown, Loader2 } from "lucide-react"
 import jsPDF from "jspdf"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -11,7 +11,7 @@ import { Employee, PPE } from "@/types/database"
 
 export default function DeliveryPage() {
   const [step, setStep] = useState(1)
-  const sigCanvas = useRef<any>(null)
+  const sigCanvas = useRef<SignatureCanvas | null>(null)
   
   const [isSaved, setIsSaved] = useState(false)
   const [lastPdfUrl, setLastPdfUrl] = useState<string | null>(null)
@@ -128,7 +128,7 @@ export default function DeliveryPage() {
       await api.saveDelivery({
         employee_id: selectedEmployeeId,
         ppe_id: selectedPpeId,
-        reason: reason as any,
+        reason: reason as 'Primeira Entrega' | 'Substituição (Desgaste/Validade)' | 'Perda' | 'Dano',
         quantity: 1,
         ip_address: "Autenticado SESMT",
         signature_url: null // Será preenchido pelo serviço api.saveDelivery
@@ -266,7 +266,7 @@ export default function DeliveryPage() {
               <div className="bg-slate-50 p-6 rounded-2xl text-sm border border-slate-200">
                 <p className="font-black text-[#8B1A1A] uppercase tracking-tighter mb-2 italic underline">TERMO DE RECEBIMENTO</p>
                 <p className="text-slate-600">
-                  "Eu, <strong>{selectedEmployee?.full_name}</strong>, recebo nesta data o EPI <strong>{selectedPpe?.name}</strong> (CA {selectedPpe?.ca_number})."
+                  &ldquo;Eu, <strong>{selectedEmployee?.full_name}</strong>, recebo nesta data o EPI <strong>{selectedPpe?.name}</strong> (CA {selectedPpe?.ca_number}).&rdquo;
                 </p>
               </div>
 

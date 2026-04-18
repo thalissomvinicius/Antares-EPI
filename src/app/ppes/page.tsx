@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Shield, Plus, Search, AlertCircle, X, Loader2 } from "lucide-react"
+import { Shield, Plus, Search, X, Loader2 } from "lucide-react"
 import { api } from "@/services/api"
 import { PPE } from "@/types/database"
 
@@ -27,7 +27,18 @@ export default function PpesPage() {
   }
 
   useEffect(() => {
-    loadPpes()
+    const fetchPpes = async () => {
+      try {
+        setLoading(true)
+        const data = await api.getPpes()
+        setPpes(data)
+      } catch (error) {
+        console.error("Erro ao carregar EPIs:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPpes()
   }, [])
 
   const filteredPpes = ppes.filter(ppe => 

@@ -30,7 +30,18 @@ export default function EmployeesPage() {
   }
 
   useEffect(() => {
-    loadEmployees()
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true)
+        const data = await api.getEmployees()
+        setEmployees(data)
+      } catch (error) {
+        console.error("Erro ao carregar colaboradores:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchEmployees()
   }, [])
 
   const filteredEmployees = employees.filter(emp => 
