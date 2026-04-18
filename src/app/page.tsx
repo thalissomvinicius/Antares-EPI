@@ -28,9 +28,9 @@ export default function Dashboard() {
         // Lógica simples de CAs vencendo (nos próximos 90 dias ou já vencidos)
         const now = new Date()
         const criticalCount = ppeData.filter(p => {
-            const expiry = new Date(p.ca_expiry_date)
-            const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-            return diffDays < 90
+          const expiry = new Date(p.ca_expiry_date)
+          const diffDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          return diffDays < 90
         }).length
 
         setStats({
@@ -50,14 +50,14 @@ export default function Dashboard() {
   }, [])
 
   if (loading) {
-      return (
-          <div className="flex flex-col items-center justify-center py-40">
-              <Loader2 className="w-10 h-10 animate-spin text-[#8B1A1A] mb-4" />
-              <p className="font-bold text-slate-400 uppercase tracking-widest text-xs italic">Acessando Banco de Dados Antares...</p>
-          </div>
-      )
+    return (
+      <div className="flex flex-col items-center justify-center py-40">
+        <Loader2 className="w-10 h-10 animate-spin text-[#8B1A1A] mb-4" />
+        <p className="font-bold text-slate-400 uppercase tracking-widest text-xs italic">Acessando Banco de Dados Antares...</p>
+      </div>
+    )
   }
-  
+
   return (
     <div className="p-6 md:p-8 md:pt-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-100 pb-8 gap-4">
@@ -69,9 +69,9 @@ export default function Dashboard() {
           <p className="text-slate-500 font-medium mt-1">Gestão de Segurança Sincronizada com Supabase.</p>
         </div>
         <div className="flex gap-2">
-            <Link href="/delivery" className="bg-[#8B1A1A] hover:bg-[#681313] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-red-900/20 transition-all flex items-center">
-                Nova Entrega <ArrowRight className="w-4 h-4 ml-2" />
-            </Link>
+          <Link href="/delivery" className="bg-[#8B1A1A] hover:bg-[#681313] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-red-900/20 transition-all flex items-center">
+            Nova Entrega <ArrowRight className="w-4 h-4 ml-2" />
+          </Link>
         </div>
       </div>
 
@@ -109,24 +109,24 @@ export default function Dashboard() {
           </h2>
           <div className="space-y-3">
             {recentDeliveries.length > 0 ? recentDeliveries.map((delivery, i) => (
-                <div key={i} className="flex justify-between items-center p-4 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
-                    <div>
-                    <p className="text-sm font-black text-slate-700 uppercase tracking-tighter">{delivery.employee?.full_name}</p>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1">
-                        {delivery.ppe?.name} • {new Date(delivery.delivery_date).toLocaleDateString()} às {new Date(delivery.delivery_date).toLocaleTimeString()}
-                    </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {delivery.signature_url && (
-                             <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[8px] font-black rounded border border-green-100 uppercase uppercase">Assinado</span>
-                        )}
-                        <div className="px-3 py-1 bg-slate-50 text-slate-400 text-[10px] font-black rounded border border-slate-100 uppercase tracking-widest font-mono">
-                            #{delivery.id.slice(0, 4)}
-                        </div>
-                    </div>
+              <div key={i} className="flex justify-between items-center p-4 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors">
+                <div>
+                  <p className="text-sm font-black text-slate-700 uppercase tracking-tighter">{delivery.employee?.full_name}</p>
+                  <p className="text-[10px] text-slate-400 font-bold mt-1">
+                    {delivery.ppe?.name} • {new Date(delivery.delivery_date).toLocaleDateString()} às {new Date(delivery.delivery_date).toLocaleTimeString()}
+                  </p>
                 </div>
+                <div className="flex items-center gap-3">
+                  {delivery.signature_url && (
+                    <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[8px] font-black rounded border border-green-100 uppercase uppercase">Assinado</span>
+                  )}
+                  <div className="px-3 py-1 bg-slate-50 text-slate-400 text-[10px] font-black rounded border border-slate-100 uppercase tracking-widest font-mono">
+                    #{delivery.id.slice(0, 4)}
+                  </div>
+                </div>
+              </div>
             )) : (
-                <p className="text-slate-400 text-sm italic py-10 text-center">Nenhuma entrega registrada ainda no Supabase.</p>
+              <p className="text-slate-400 text-sm italic py-10 text-center">Nenhuma entrega registrada ainda no Supabase.</p>
             )}
           </div>
           <Link href="/history" className="mt-6 inline-block text-[10px] font-black text-[#8B1A1A] uppercase tracking-widest hover:underline">

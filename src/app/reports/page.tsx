@@ -63,13 +63,13 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in">
       <div>
         <h1 className="text-2xl font-black tracking-tighter text-slate-800 flex items-center uppercase">
             <TrendingDown className="w-6 h-6 mr-2 text-[#8B1A1A]" />
             BI & Inteligência Antares
         </h1>
-        <p className="text-slate-500 text-sm mt-1">Análise de custos e conformidade extraída em tempo real do Supabase.</p>
+        <p className="text-slate-500 text-sm mt-1 font-medium">Análise de custos e conformidade extraída em tempo real do Supabase.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -89,7 +89,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center min-h-[350px] group hover:border-[#8B1A1A]/30 transition-all">
           <BarChart3 className="w-16 h-16 text-slate-100 mb-6 group-hover:scale-110 transition-transform text-[#8B1A1A]/10" />
-          <h3 className="font-black text-slate-800 uppercase tracking-tighter">Investimento por Canteiro</h3>
+          <h3 className="font-black text-slate-800 uppercase tracking-tighter text-center">Investimento por Canteiro</h3>
           <p className="text-xs text-slate-400 mt-2 text-center max-w-xs">
             Visualize onde estão concentrados os maiores custos de reposição de EPIs em suas obras.
           </p>
@@ -104,7 +104,7 @@ export default function ReportsPage() {
 
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center min-h-[350px] group hover:border-[#8B1A1A]/30 transition-all">
           <PieChart className="w-16 h-16 text-slate-100 mb-6 group-hover:scale-110 transition-transform text-[#8B1A1A]/10" />
-          <h3 className="font-black text-slate-800 uppercase tracking-tighter">Distribuição de Motivos</h3>
+          <h3 className="font-black text-slate-800 uppercase tracking-tighter text-center">Distribuição de Motivos</h3>
           <p className="text-xs text-slate-400 mt-2 text-center max-w-xs">
             Identifique se a maior parte das trocas é por desgaste natural ou perda negligente.
           </p>
@@ -116,21 +116,21 @@ export default function ReportsPage() {
 
       <div className="bg-slate-900 rounded-2xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl shadow-slate-900/40 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#8B1A1A]/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-        <div className="flex items-center gap-4 relative z-10">
+        <div className="flex items-center gap-4 relative z-10 w-full sm:w-auto">
             <div className="bg-[#8B1A1A] p-4 rounded-xl shadow-lg shadow-red-900/50">
                 <ShieldCheck className="w-8 h-8 text-white" />
             </div>
             <div>
-                <h2 className="text-xl font-black uppercase tracking-tighter">Relatório Consolidado Mensal</h2>
-                <p className="text-slate-400 text-sm font-medium">Exportação de conformidade para auditorias do Ministério do Trabalho.</p>
+                <h2 className="text-xl font-black uppercase tracking-tighter">Relatório Consolidado</h2>
+                <p className="text-slate-400 text-sm font-medium">Exportação de conformidade para auditorias.</p>
             </div>
         </div>
         <button 
           onClick={() => window.print()}
-          className="bg-white text-slate-900 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-slate-50 transition-all flex items-center relative z-10 border-b-4 border-slate-200"
+          className="w-full md:w-auto bg-white text-slate-900 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-slate-50 transition-all flex items-center justify-center relative z-10 border-b-4 border-slate-200"
         >
             <Download className="w-4 h-4 mr-2 text-[#8B1A1A]" />
-            Imprimir Balanço SESMT
+            Imprimir Balanço
         </button>
       </div>
     </div>

@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Users, Shield, PenTool } from "lucide-react"
+import { Home, Users, Shield, PenTool, History, TrendingDown, Award } from "lucide-react"
 
 const mobileItems = [
   { href: "/", label: "Início", icon: Home },
   { href: "/delivery", label: "Entrega", icon: PenTool },
   { href: "/employees", label: "Equipe", icon: Users },
-  { href: "/ppes", label: "EPIs", icon: Shield },
+  { href: "/history", label: "Histórico", icon: History },
+  { href: "/reports", label: "BI", icon: TrendingDown },
 ]
 
 export function MobileNav() {

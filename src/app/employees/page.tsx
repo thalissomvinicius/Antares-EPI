@@ -76,18 +76,18 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in relative">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in relative">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tighter text-slate-800 flex items-center">
             <Users className="w-6 h-6 mr-2 text-[#8B1A1A]" />
             Equipe Antares
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Gestão de prontuários de EPI sincronizada com o Supabase.</p>
+          <p className="text-slate-500 text-sm mt-1 font-medium">Gestão de prontuários de EPI sincronizada com o Supabase.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-[#8B1A1A] hover:bg-[#681313] text-white shadow-lg shadow-red-900/20 px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center whitespace-nowrap"
+          className="w-full sm:w-auto bg-[#8B1A1A] hover:bg-[#681313] text-white shadow-lg shadow-red-900/20 px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center whitespace-nowrap"
         >
           <Plus className="w-4 h-4 mr-2" />
           Novo Colaborador

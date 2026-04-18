@@ -30,14 +30,14 @@ export default function HistoryPage() {
   )
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-800 flex items-center uppercase tracking-tighter">
             <History className="w-6 h-6 mr-2 text-[#8B1A1A]" />
             Auditoria Antares • Live
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Consulta direta ao banco de dados Supabase para conformidade NR-06.</p>
+          <p className="text-slate-500 text-sm mt-1 font-medium">Consulta direta ao banco de dados Supabase para conformidade NR-06.</p>
         </div>
       </div>
 

@@ -253,7 +253,7 @@ export default function DeliveryPage() {
                 <button 
                   disabled={employees.length === 0 || ppes.length === 0}
                   onClick={() => setStep(2)}
-                  className="w-full bg-[#8B1A1A] hover:bg-[#681313] text-white disabled:bg-slate-300 py-4 rounded-xl font-black uppercase tracking-widest transition-all"
+                  className="w-full bg-[#8B1A1A] hover:bg-[#681313] text-white disabled:bg-slate-300 py-5 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg shadow-red-900/10"
                 >
                   Ir para Assinatura
                 </button>
@@ -275,7 +275,7 @@ export default function DeliveryPage() {
                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Assinatura do Colaborador</label>
                   <button onClick={clearSignature} className="text-[10px] font-black text-[#8B1A1A] uppercase hover:underline">Limpar</button>
                 </div>
-                <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 shadow-inner h-60 touch-none">
+                <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 shadow-inner h-80 sm:h-60 touch-none">
                   <SignatureCanvas 
                     ref={sigCanvas}
                     canvasProps={{ className: 'w-full h-full' }}
