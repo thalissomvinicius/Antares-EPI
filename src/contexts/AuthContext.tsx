@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           // Bypass temporário para garantir seu acesso administrativo
-          if (session.user.email === 'thalissom.cruz@VALLE.br') {
+          if (session.user.email === 'thalissomvinicius7@gmail.com' || session.user.email === 'thalissom.cruz@VALLE.br') {
             userData.role = 'ADMIN'
           }
 
