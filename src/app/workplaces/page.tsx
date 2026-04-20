@@ -41,7 +41,7 @@ export default function WorkplacesPage() {
 
     try {
       setIsSaving(true)
-      await api.addWorkplace(formData)
+      await api.addWorkplace({ ...formData, active: true })
       await loadWorkplaces()
       setIsModalOpen(false)
       setFormData({ name: "", address: "", manager_name: "" })
