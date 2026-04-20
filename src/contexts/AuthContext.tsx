@@ -48,8 +48,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           const userData = {
             ...session.user,
-            role: profile?.role || session.user.user_metadata?.role || 'ALMOXARIFE'
+            role: (profile?.role || session.user.user_metadata?.role || 'ALMOXARIFE') as 'ADMIN' | 'ALMOXARIFE' | 'DIRETORIA'
           }
+
+          // Bypass temporário para garantir seu acesso administrativo
+          if (session.user.email === 'thalissom.cruz@VALLE.br') {
+            userData.role = 'ADMIN'
+          }
+
           setUser(userData as User)
         } else {
           setUser(null)
