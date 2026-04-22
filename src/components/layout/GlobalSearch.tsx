@@ -109,7 +109,7 @@ export function GlobalSearch() {
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
               ) : (
-                <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <button onClick={() => setIsOpen(false)} title="Fechar busca" className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                   <X className="w-5 h-5 text-slate-400" />
                 </button>
               )}

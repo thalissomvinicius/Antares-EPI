@@ -297,6 +297,7 @@ export default function DeliveryPage() {
                     />
                     <select 
                       id="ppe-select"
+                      title="Selecionar equipamento"
                       className="w-2/3 bg-slate-50 border-2 border-slate-100 text-slate-900 rounded-xl p-4 outline-none focus:border-[#8B1A1A] transition-all font-bold"
                       value={selectedPpeId}
                       onChange={(e) => setSelectedPpeId(e.target.value)}

@@ -195,6 +195,7 @@ export default function ReportsPage() {
                               ))}
                           </Pie>
                           <Tooltip 
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             formatter={(value: any) => `R$ ${Number(value).toLocaleString('pt-BR')}`}
                             contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
                           />

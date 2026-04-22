@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Users, Plus, Search, X, Loader2, HardDrive, FileDown, ShieldAlert, History, UserMinus, ShieldCheck, Lock } from "lucide-react"
 import { api } from "@/services/api"
 import { Employee, Workplace, DeliveryWithRelations } from "@/types/database"
@@ -209,7 +209,8 @@ export default function EmployeesPage() {
       }
     })
 
-    const finalY = (doc as any).lastAutoTable.finalY || 60
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const finalY = (doc as any).lastAutoTable?.finalY || 60
     doc.text(`Impresso em: ${emitDate} pelo Sistema Antares SESMT`, 14, finalY + 10)
 
     doc.save(`Ficha_NR06_${emp.full_name.replace(/\s+/g, '_')}.pdf`)
@@ -475,6 +476,7 @@ export default function EmployeesPage() {
                       </button>
                       <button 
                         onClick={() => setIsProfileOpen(false)} 
+                        title="Fechar prontuário"
                         className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 px-4 py-2.5 rounded-xl transition-colors"
                       >
                         <X className="w-5 h-5" />
