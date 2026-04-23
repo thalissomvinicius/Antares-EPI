@@ -34,7 +34,7 @@ export default function DeliveryPage() {
   const [ppeSearchTerm, setPpeSearchTerm] = useState("")
   const [quantity, setQuantity] = useState(1)
   const [selectedWorkplaceId, setSelectedWorkplaceId] = useState("")
-  const [reason] = useState("Nova Entrega")
+  const [reason, setReason] = useState("Primeira Entrega")
 
   // Biometria Facial
   const [authMethod, setAuthMethod] = useState<'manual' | 'facial'>('manual')
@@ -305,6 +305,21 @@ export default function DeliveryPage() {
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
                   />
+                </div>
+
+                <div className="space-y-3 sm:col-span-2">
+                  <label htmlFor="reason-select" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motivo da Entrega</label>
+                  <select 
+                    id="reason-select"
+                    className="w-full bg-slate-50 border-2 border-slate-100 text-slate-900 rounded-xl p-4 outline-none focus:border-[#8B1A1A] transition-all font-bold appearance-none"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  >
+                    <option value="Primeira Entrega">Primeira Entrega</option>
+                    <option value="Substituição (Desgaste/Validade)">Substituição (Desgaste/Validade)</option>
+                    <option value="Perda">Perda</option>
+                    <option value="Dano">Dano</option>
+                  </select>
                 </div>
               </div>
 

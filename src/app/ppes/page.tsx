@@ -13,7 +13,7 @@ export default function PpesPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState({ name: "", ca: "", valCa: "", cost: "", stock: "" })
+  const [formData, setFormData] = useState<{id?: string, name: string, ca: string, valCa: string, cost: string, stock: string}>({ name: "", ca: "", valCa: "", cost: "", stock: "" })
   const [isSaving, setIsSaving] = useState(false)
 
   const loadPpes = async () => {
@@ -42,35 +42,45 @@ export default function PpesPage() {
     ppe.ca_number.includes(searchTerm)
   )
 
-  const handleAddPpe = async (e: React.FormEvent) => {
+  const handleSavePpe = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name) return
 
     try {
       setIsSaving(true)
-      const newPpe = await api.addPpe({
-        name: formData.name,
-        ca_number: formData.ca || "N/A",
-        ca_expiry_date: formData.valCa || new Date().toISOString(),
-        cost: parseFloat(formData.cost) || 0,
-        manufacturer: "Genérico",
-        lifespan_days: 180,
-        active: true,
-        current_stock: parseInt(formData.stock) || 0
-      })
-
-      if (parseInt(formData.stock) > 0) {
-        await api.addStockMovement({
-          ppe_id: newPpe.id,
-          quantity: parseInt(formData.stock),
-          type: 'ENTRADA',
-          motive: 'Saldo Inicial (Cadastro)'
+      
+      if (formData.id) {
+        await api.updatePpe(formData.id, {
+          name: formData.name,
+          ca_number: formData.ca || "N/A",
+          ca_expiry_date: formData.valCa || new Date().toISOString(),
+          cost: parseFloat(formData.cost) || 0,
         })
+      } else {
+        const newPpe = await api.addPpe({
+          name: formData.name,
+          ca_number: formData.ca || "N/A",
+          ca_expiry_date: formData.valCa || new Date().toISOString(),
+          cost: parseFloat(formData.cost) || 0,
+          manufacturer: "Genérico",
+          lifespan_days: 180,
+          active: true,
+          current_stock: parseInt(formData.stock) || 0
+        })
+
+        if (parseInt(formData.stock) > 0) {
+          await api.addStockMovement({
+            ppe_id: newPpe.id,
+            quantity: parseInt(formData.stock),
+            type: 'ENTRADA',
+            motive: 'Saldo Inicial (Cadastro)'
+          })
+        }
       }
       
       setLoading(true)
       await loadPpes()
-      setFormData({ name: "", ca: "", valCa: "", cost: "", stock: "" })
+      setFormData({ id: undefined, name: "", ca: "", valCa: "", cost: "", stock: "" })
       setIsModalOpen(false)
     } catch (error) {
       console.error("Erro ao salvar EPI:", error)
@@ -78,6 +88,23 @@ export default function PpesPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const openEditPpe = (ppe: PPE) => {
+    setFormData({
+      id: ppe.id,
+      name: ppe.name,
+      ca: ppe.ca_number,
+      valCa: ppe.ca_expiry_date ? ppe.ca_expiry_date.split('T')[0] : "",
+      cost: ppe.cost.toString(),
+      stock: ppe.current_stock.toString()
+    })
+    setIsModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setFormData({ id: undefined, name: "", ca: "", valCa: "", cost: "", stock: "" })
+    setIsModalOpen(false)
   }
 
   return (
@@ -102,7 +129,10 @@ export default function PpesPage() {
                 Estoque
             </Link>
             <button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setFormData({ id: undefined, name: "", ca: "", valCa: "", cost: "", stock: "" })
+                  setIsModalOpen(true)
+                }}
                 className="flex-1 sm:flex-none bg-[#8B1A1A] hover:bg-[#681313] text-white shadow-lg shadow-red-900/20 px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center border-b-4 border-red-900"
             >
                 <Plus className="w-4 h-4 mr-2" />
@@ -175,7 +205,13 @@ export default function PpesPage() {
                         </div>
                     </td>
                     <td className="px-6 py-5 text-slate-600 font-bold italic">R$ {ppe.cost.toFixed(2)}</td>
-                    <td className="px-6 py-5 text-right">
+                    <td className="px-6 py-5 text-right space-x-3">
+                        <button 
+                            onClick={() => openEditPpe(ppe)}
+                            className="text-slate-500 hover:bg-slate-100 font-black text-[10px] uppercase tracking-widest border border-slate-200 bg-white px-3 py-2 rounded-lg shadow-sm transition-all"
+                        >
+                            Editar
+                        </button>
                         <Link 
                             href="/inventory"
                             title="Gerenciar estoque deste item"
@@ -204,9 +240,9 @@ export default function PpesPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
             <div className="flex justify-between items-center p-8 border-b border-slate-100">
-              <h2 className="font-black text-slate-800 uppercase tracking-tighter text-2xl tracking-tighter">Novo Item Antares</h2>
+              <h2 className="font-black text-slate-800 uppercase tracking-tighter text-2xl tracking-tighter">{formData.id ? 'Editar EPI' : 'Novo Item Antares'}</h2>
               <button 
-                onClick={() => setIsModalOpen(false)} 
+                onClick={closeEditModal} 
                 title="Fechar modal"
                 aria-label="Fechar modal de cadastro de EPI"
                 className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -215,7 +251,7 @@ export default function PpesPage() {
               </button>
             </div>
             
-            <form onSubmit={handleAddPpe} className="p-8 space-y-6">
+            <form onSubmit={handleSavePpe} className="p-8 space-y-6">
               <div className="space-y-2">
                 <label htmlFor="ppe-name" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Equipamento (EPI)</label>
                 <input 
@@ -264,8 +300,10 @@ export default function PpesPage() {
                     min="0"
                     value={formData.stock}
                     onChange={(e) => setFormData({...formData, stock: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-[#8B1A1A] transition-all font-bold" 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-[#8B1A1A] transition-all font-bold disabled:opacity-50" 
                     placeholder="0"
+                    disabled={!!formData.id}
+                    title={formData.id ? "O estoque deve ser gerenciado na tela de Estoque" : ""}
                   />
                 </div>
                 <div className="space-y-2">
@@ -284,7 +322,7 @@ export default function PpesPage() {
                 <button 
                   type="button" 
                   disabled={isSaving}
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeEditModal}
                   className="flex-1 px-4 py-4 text-xs font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-all"
                 >
                   Cancelar
@@ -294,7 +332,7 @@ export default function PpesPage() {
                   disabled={isSaving}
                   className="flex-[2] px-4 py-4 text-xs font-black text-white bg-[#8B1A1A] hover:bg-[#681313] rounded-2xl uppercase tracking-widest transition-all flex items-center justify-center font-bold border-b-4 border-red-900 shadow-xl shadow-red-900/10"
                 >
-                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Ativar no Catálogo"}
+                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : formData.id ? "Salvar Edição" : "Ativar no Catálogo"}
                 </button>
               </div>
             </form>

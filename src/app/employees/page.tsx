@@ -81,7 +81,7 @@ export default function EmployeesPage() {
     emp.cpf.includes(searchTerm)
   )
 
-  const handleAddEmployee = async (e: React.FormEvent) => {
+  const handleSaveEmployee = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name) return
 
@@ -95,21 +95,32 @@ export default function EmployeesPage() {
         photoFile = new File([blob], "profile.png", { type: "image/png" });
       }
 
-      await api.addEmployee({
-        full_name: formData.name,
-        job_title: formData.role || "Geral",
-        department: formData.department || `Sede ${COMPANY_CONFIG.shortName}`,
-        cpf: formData.cpf || "000.000.000-00",
-        admission_date: new Date().toISOString(),
-        active: true,
-        workplace_id: formData.workplace_id || null,
-        photo_url: null, // This will be set by the API service using the photoFile
-        face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
-      }, photoFile)
+      if (formData.id) {
+        await api.updateEmployee(formData.id, {
+          full_name: formData.name,
+          job_title: formData.role || "Geral",
+          department: formData.department || `Sede ${COMPANY_CONFIG.shortName}`,
+          cpf: formData.cpf || "000.000.000-00",
+          workplace_id: formData.workplace_id || null,
+          face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
+        }, photoFile)
+      } else {
+        await api.addEmployee({
+          full_name: formData.name,
+          job_title: formData.role || "Geral",
+          department: formData.department || `Sede ${COMPANY_CONFIG.shortName}`,
+          cpf: formData.cpf || "000.000.000-00",
+          admission_date: new Date().toISOString(),
+          active: true,
+          workplace_id: formData.workplace_id || null,
+          photo_url: null,
+          face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
+        }, photoFile)
+      }
       
       setLoading(true)
       await loadData() // Recarrega a lista
-      setFormData({ name: "", role: "", department: "", cpf: "", workplace_id: "", photo_url: null, face_descriptor: null })
+      setFormData({ id: undefined, name: "", role: "", department: "", cpf: "", workplace_id: "", photo_url: null, face_descriptor: null })
       setIsModalOpen(false)
     } catch (error) {
       console.error("Erro ao salvar colaborador:", error)
@@ -117,6 +128,25 @@ export default function EmployeesPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const openEditEmployee = (emp: Employee) => {
+    setFormData({
+      id: emp.id,
+      name: emp.full_name,
+      role: emp.job_title,
+      department: emp.department || "",
+      cpf: emp.cpf,
+      workplace_id: emp.workplace_id || "",
+      photo_url: emp.photo_url || null,
+      face_descriptor: emp.face_descriptor ? Array.from(emp.face_descriptor) : null
+    })
+    setIsModalOpen(true)
+  }
+
+  const closeEditModal = () => {
+    setFormData({ id: undefined, name: "", role: "", department: "", cpf: "", workplace_id: "", photo_url: null, face_descriptor: null })
+    setIsModalOpen(false)
   }
 
   const openProfile = async (empId: string) => {
@@ -312,7 +342,15 @@ export default function EmployeesPage() {
                         {emp.active ? 'Ativo' : 'Inativo'}
                         </span>
                     </td>
-                    <td className="px-6 py-5 text-right">
+                    <td className="px-6 py-5 text-right space-x-2">
+                        {canEdit && (
+                          <button 
+                            onClick={() => openEditEmployee(emp)}
+                            className="text-slate-500 hover:bg-slate-100 font-black text-[10px] uppercase tracking-widest border border-slate-200 bg-white px-3 py-2 rounded-lg shadow-sm transition-all"
+                          >
+                          Editar
+                          </button>
+                        )}
                         <button 
                           onClick={() => openProfile(emp.id)}
                           className="text-[#8B1A1A] hover:bg-red-50 font-black text-[10px] uppercase tracking-widest border border-red-100 bg-white px-3 py-2 rounded-lg shadow-sm transition-all"
@@ -340,9 +378,9 @@ export default function EmployeesPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <h2 className="font-black text-slate-800 uppercase tracking-tighter text-xl">Novo Cadastro {COMPANY_CONFIG.shortName}</h2>
+              <h2 className="font-black text-slate-800 uppercase tracking-tighter text-xl">{formData.id ? 'Editar Colaborador' : `Novo Cadastro ${COMPANY_CONFIG.shortName}`}</h2>
               <button 
-                onClick={() => setIsModalOpen(false)} 
+                onClick={closeEditModal} 
                 className="text-slate-400 hover:text-slate-600 transition-colors"
                 aria-label="Fechar modal"
               >
@@ -361,7 +399,7 @@ export default function EmployeesPage() {
                 />
               </div>
             ) : (
-            <form onSubmit={handleAddEmployee} className="p-8 space-y-5">
+            <form onSubmit={handleSaveEmployee} className="p-8 space-y-5">
               <div className="flex flex-col items-center mb-4">
                 {formData.photo_url ? (
                   <div className="relative">
@@ -461,7 +499,7 @@ export default function EmployeesPage() {
                 <button 
                   type="button" 
                   disabled={isSaving}
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeEditModal}
                   className="flex-1 px-4 py-4 text-xs font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-all"
                 >
                   Cancelar

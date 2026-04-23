@@ -140,6 +140,17 @@ export const api = {
     return data[0] as PPE;
   },
 
+  async updatePpe(id: string, updates: Partial<PPE>) {
+    const { data, error } = await supabase
+      .from('ppes')
+      .update(updates)
+      .eq('id', id)
+      .select();
+    
+    if (error) throw error;
+    return data[0] as PPE;
+  },
+
   // --- Estoque (Stock Movements) ---
   async getStockMovements() {
     const { data, error } = await supabase
