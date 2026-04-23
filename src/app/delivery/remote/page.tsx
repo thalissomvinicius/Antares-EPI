@@ -162,15 +162,22 @@ function RemoteDeliveryContent() {
       const blob = await response.blob()
       const signatureFile = new File([blob], "remote_signature.png", { type: "image/png" })
 
-      await api.saveDelivery({
-        employee_id: employee.id,
-        ppe_id: ppe.id,
-        workplace_id: workplace?.id || null,
-        reason: (deliveryData?.r || 'Primeira Entrega') as 'Primeira Entrega' | 'Substituição (Desgaste/Validade)' | 'Perda' | 'Dano',
-        quantity: deliveryData?.q || 1,
-        ip_address: ipAddress || "Remoto",
-        signature_url: null
-      }, signatureFile)
+      const formData = new FormData()
+      formData.append('employee_id', employee.id)
+      formData.append('ppe_id', ppe.id)
+      if (workplace?.id) formData.append('workplace_id', workplace.id)
+      formData.append('reason', deliveryData?.r || 'Primeira Entrega')
+      formData.append('quantity', String(deliveryData?.q || 1))
+      formData.append('ip_address', ipAddress || 'Remoto')
+      formData.append('signatureFile', signatureFile)
+
+      const apiRes = await fetch('/api/remote-delivery', {
+        method: 'POST',
+        body: formData
+      })
+      
+      const responseData = await apiRes.json()
+      if (!apiRes.ok) throw new Error(responseData.error || "Erro ao salvar na nuvem")
 
       const pdfBlob = await generateDeliveryPDF({
         employeeName: employee.full_name,
