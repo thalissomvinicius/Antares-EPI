@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import Image from "next/image"
 import SignatureCanvas from "react-signature-canvas"
 import { CheckCircle2, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine } from "lucide-react"
 import { format } from "date-fns"
@@ -356,7 +357,14 @@ export default function DeliveryPage() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Validação Facial Ativa</span>
                         <div className="flex items-center gap-2">
-                          <img src={selectedEmployee.photo_url || ''} alt={`Foto de ${selectedEmployee.full_name}`} className="w-6 h-6 rounded-full border border-slate-200 object-cover" />
+                          <Image 
+                            src={selectedEmployee.photo_url || ''} 
+                            alt={`Foto de ${selectedEmployee.full_name}`} 
+                            width={24} 
+                            height={24} 
+                            className="w-6 h-6 rounded-full border border-slate-200 object-cover" 
+                            unoptimized
+                          />
                           <span className="text-[10px] font-bold text-slate-500">{selectedEmployee.full_name}</span>
                         </div>
                       </div>

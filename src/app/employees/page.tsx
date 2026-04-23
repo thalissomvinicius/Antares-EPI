@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Users, Plus, Search, X, Loader2, HardDrive, FileDown, ShieldAlert, History, UserMinus, ShieldCheck, Lock, Camera } from "lucide-react"
 import { api } from "@/services/api"
 import { Employee, Workplace, DeliveryWithRelations } from "@/types/database"
@@ -364,7 +365,14 @@ export default function EmployeesPage() {
               <div className="flex flex-col items-center mb-4">
                 {formData.photo_url ? (
                   <div className="relative">
-                    <img src={formData.photo_url} alt="Biometria capturada" className="w-24 h-24 rounded-full object-cover border-4 border-green-500" />
+                    <Image 
+                      src={formData.photo_url} 
+                      alt="Biometria capturada" 
+                      width={96} 
+                      height={96} 
+                      className="w-24 h-24 rounded-full object-cover border-4 border-green-500" 
+                      unoptimized
+                    />
                     <button 
                       type="button" 
                       onClick={() => setFormData({...formData, photo_url: null, face_descriptor: null})} 
