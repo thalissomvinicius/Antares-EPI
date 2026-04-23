@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect } from "react"
 import SignatureCanvas from "react-signature-canvas"
 import { CheckCircle2, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine } from "lucide-react"
-import jsPDF from "jspdf"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { api } from "@/services/api"
 import { Employee, PPE, Workplace } from "@/types/database"
 import { FaceCamera } from "@/components/ui/FaceCamera"
+import { generateDeliveryPDF } from "@/utils/pdfGenerator"
+import { COMPANY_CONFIG } from "@/config/company"
 
 export default function DeliveryPage() {
   const [step, setStep] = useState(1)
@@ -90,60 +91,7 @@ export default function DeliveryPage() {
     }
   }
 
-  const generatePDFBlob = (signatureImageBase64: string): Blob => {
-    const doc = new jsPDF()
-    const dataFormatada = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-    const hash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 
-    doc.setFillColor(139, 26, 26) // #8B1A1A
-    doc.rect(0, 0, 210, 30, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(22)
-    doc.setFont("helvetica", "bold")
-    doc.text("FICHA DE ENTREGA DE E.P.I.", 105, 18, { align: "center" })
-    doc.setFontSize(10)
-    doc.text("NR-06 - Ministério do Trabalho e Emprego", 105, 25, { align: "center" })
-
-    doc.setTextColor(0, 0, 0)
-    doc.setFontSize(12)
-    doc.setFont("helvetica", "bold")
-    doc.text("DADOS DO COLABORADOR E UNIDADE", 15, 42)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Nome: ${selectedEmployee?.full_name}`, 15, 48)
-    doc.text(`CPF: ${selectedEmployee?.cpf}`, 15, 53)
-    doc.text(`Cargo: ${selectedEmployee?.job_title}`, 15, 58)
-    doc.text(`Unidade/Canteiro: ${selectedWorkplace?.name || "Geral"}`, 15, 63)
-
-    doc.setFont("helvetica", "bold")
-    doc.text("DETALHES DO EQUIPAMENTO", 15, 75)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Equipamento: ${selectedPpe?.name}`, 15, 81)
-    doc.text(`Nº do C.A.: ${selectedPpe?.ca_number}`, 15, 86)
-    doc.text(`Motivo da Entrega: ${reason}`, 15, 91)
-    doc.text(`Data de Recebimento: ${dataFormatada}`, 15, 96)
-
-    doc.line(15, 101, 195, 101)
-    
-    doc.setFont("helvetica", "bold")
-    doc.text("TERMO DE RESPONSABILIDADE", 15, 110)
-    doc.setFont("helvetica", "normal")
-    const term = "Declaro ter recebido da empresa o(s) Equipamento(s) de Proteção Individual listado(s) acima. Comprometo-me a utilizá-lo(s) apenas para a finalidade a que se destina(m), responsabilizando-me por sua guarda e conservação. Estou ciente de que deverei comunicar ao SESMT qualquer acidente, dano ou extravio para a imediata substituição..."
-    const splitTerm = doc.splitTextToSize(term, 180)
-    doc.text(splitTerm, 15, 116)
-
-    const ySignatureBox = 150
-    doc.rect(15, ySignatureBox, 180, 50)
-    doc.addImage(signatureImageBase64, 'PNG', 65, ySignatureBox + 5, 80, 25)
-    doc.line(55, ySignatureBox + 35, 155, ySignatureBox + 35)
-    doc.setFontSize(8)
-    doc.text(`Assinatura (${authMethod === 'facial' ? 'Biometria Facial' : 'Manual'}): ${selectedEmployee?.full_name}`, 105, ySignatureBox + 40, { align: "center" })
-
-    doc.setFontSize(7)
-    doc.setTextColor(100)
-    doc.text(`Token Antares: ${hash} | Unidade: ${selectedWorkplace?.name || "Sede"} | NR-06 Compliant`, 15, 215)
-
-    return doc.output('blob')
-  }
 
   const saveDelivery = async (signatureDataUrl: string) => {
     if (isPpeExpired) {
@@ -162,13 +110,25 @@ export default function DeliveryPage() {
         employee_id: selectedEmployeeId,
         ppe_id: selectedPpeId,
         workplace_id: selectedWorkplaceId || null,
-        reason: 'Primeira Entrega', // Default for new deliveries
+        reason: 'Primeira Entrega',
         quantity: quantity,
         ip_address: `Terminal ${selectedWorkplace?.name || "Móvel"}`,
         signature_url: null
       }, signatureFile)
 
-      const pdfBlob = generatePDFBlob(signatureDataUrl)
+      const pdfBlob = generateDeliveryPDF({
+        employeeName: selectedEmployee?.full_name || "",
+        employeeCpf: selectedEmployee?.cpf || "",
+        employeeRole: selectedEmployee?.job_title || "",
+        workplaceName: selectedWorkplace?.name || "Sede",
+        ppeName: selectedPpe?.name || "",
+        ppeCaNumber: selectedPpe?.ca_number || "",
+        quantity,
+        reason,
+        authMethod,
+        signatureBase64: signatureDataUrl,
+        photoBase64: authMethod === 'facial' ? signatureDataUrl : undefined,
+      })
       setLastPdfUrl(URL.createObjectURL(pdfBlob))
       
       setIsSaved(true)
@@ -197,7 +157,7 @@ export default function DeliveryPage() {
       return (
           <div className="flex flex-col items-center justify-center py-40">
               <Loader2 className="w-10 h-10 animate-spin text-[#8B1A1A] mb-4" />
-              <p className="font-bold text-slate-500 uppercase tracking-widest text-xs italic">Sincronizando Sessão Antares...</p>
+              <p className="font-bold text-slate-500 uppercase tracking-widest text-xs italic">Sincronizando Sessão {COMPANY_CONFIG.shortName}...</p>
           </div>
       )
   }
@@ -216,7 +176,7 @@ export default function DeliveryPage() {
             <a 
               href={lastPdfUrl}
               target="_blank"
-              download="ficha_epi_antares.pdf"
+              download={`ficha_epi_${COMPANY_CONFIG.shortName.toLowerCase()}.pdf`}
               className="px-8 py-4 bg-[#8B1A1A] hover:bg-[#681313] text-white rounded-xl font-bold transition-all shadow-lg shadow-red-900/10 flex items-center justify-center border-b-4 border-red-900"
             >
               <FileDown className="w-5 h-5 mr-3" />
@@ -237,8 +197,8 @@ export default function DeliveryPage() {
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto pb-24 md:pb-8">
       <div className="mb-8 border-l-4 border-[#8B1A1A] pl-4">
-        <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Terminal de Entregas (Entrada)</h1>
-        <p className="text-slate-500 font-medium">Fornecimento de Novos Equipamentos.</p>
+        <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Terminal de Entregas (Entrada) {COMPANY_CONFIG.shortName}</h1>
+        <p className="text-slate-500 font-medium">Fornecimento de Novos Equipamentos via {COMPANY_CONFIG.systemName}.</p>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl shadow-slate-200/50">

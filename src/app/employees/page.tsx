@@ -11,6 +11,8 @@ import { ptBR } from "date-fns/locale"
 import { useAuth } from "@/contexts/AuthContext"
 import { Skeleton } from "@/components/ui/Skeleton"
 import { FaceCamera } from "@/components/ui/FaceCamera"
+import { COMPANY_CONFIG } from "@/config/company"
+import { generateNR06PDF } from "@/utils/pdfGenerator"
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -87,17 +89,25 @@ export default function EmployeesPage() {
 
     try {
       setIsSaving(true)
+      
+      let photoFile: File | undefined;
+      if (formData.photo_url && formData.photo_url.startsWith('data:')) {
+        const response = await fetch(formData.photo_url);
+        const blob = await response.blob();
+        photoFile = new File([blob], "profile.png", { type: "image/png" });
+      }
+
       await api.addEmployee({
         full_name: formData.name,
         job_title: formData.role || "Geral",
-        department: formData.department || "Sede Antares",
+        department: formData.department || `Sede ${COMPANY_CONFIG.shortName}`,
         cpf: formData.cpf || "000.000.000-00",
         admission_date: new Date().toISOString(),
         active: true,
         workplace_id: formData.workplace_id || null,
-        photo_url: formData.photo_url || null,
+        photo_url: null, // This will be set by the API service using the photoFile
         face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
-      })
+      }, photoFile)
       
       setLoading(true)
       await loadData() // Recarrega a lista
@@ -173,61 +183,26 @@ export default function EmployeesPage() {
   }
 
   const exportNR06PDF = () => {
-    if (!selectedEmployeeId) return
     const emp = employees.find(e => e.id === selectedEmployeeId)
     if (!emp) return
 
-    const doc = new jsPDF()
-    const emitDate = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-    
-    doc.setFontSize(14)
-    doc.setFont("helvetica", "bold")
-    doc.text("FICHA DE CONTROLE DE EPI - NR 06", 105, 15, { align: "center" })
-    
-    doc.setFontSize(9)
-    doc.setFont("helvetica", "normal")
-    doc.text("EMPRESA: ANTARES EMPREENDIMENTOS S.A. | CNPJ: 12.345.678/0001-90", 14, 25)
-    doc.text(`NOME: ${emp.full_name.toUpperCase()}`, 14, 31)
-    doc.text(`CPF: ${emp.cpf} | CARGO: ${emp.job_title.toUpperCase()} | STATUS: ${emp.active ? 'ATIVO' : 'DESLIGADO'}`, 14, 37)
-    
-    doc.setFontSize(8)
-    const term = "Declaro para os devidos fins de direito que recebi da empresa os Equipamentos de Proteção Individual listados abaixo. Comprometo-me a usá-los exclusivamente para a execução das minhas atividades, guardá-los e conservá-los, bem como comunicar imediatamente ao setor de Segurança do Trabalho qualquer alteração que os tornem impróprios para uso, cumprindo as determinações da NR-06."
-    const splitTerm = doc.splitTextToSize(term, 182)
-    doc.text(splitTerm, 14, 45)
-
-    const tableData = employeeHistory.map(d => [
-      format(new Date(d.delivery_date), "dd/MM/yyyy"),
-      d.ppe?.name || "",
-      d.ppe?.ca_number || "",
-      d.quantity,
-      d.reason,
-      d.returned_at ? format(new Date(d.returned_at), "dd/MM/yyyy") : "-",
-      d.signature_url ? "Assinatura Digital" : "Registro Eletrônico"
-    ])
-
-    autoTable(doc, {
-      startY: 55,
-      head: [['Data Entrega', 'Equipamento', 'C.A.', 'Qtd', 'Motivo Retirada', 'Devolução / Baixa', 'Validação']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [139, 26, 26], textColor: 255, fontSize: 8 },
-      bodyStyles: { fontSize: 7 },
-      columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 15 },
-        3: { cellWidth: 10 },
-        4: { cellWidth: 35 },
-        5: { cellWidth: 25 },
-        6: { cellWidth: 30 }
-      }
+    generateNR06PDF({
+      employeeName: emp.full_name,
+      employeeCpf: emp.cpf,
+      employeeRole: emp.job_title,
+      employeeDepartment: emp.department || "Geral",
+      workplaceName: getWorkplaceName(emp.workplace_id),
+      admissionDate: format(new Date(emp.admission_date), "dd/MM/yyyy"),
+      items: employeeHistory.map(d => ({
+        deliveryDate: format(new Date(d.delivery_date), "dd/MM/yyyy"),
+        ppeName: d.ppe?.name || "N/A",
+        caNr: d.ppe?.ca_number || "N/A",
+        quantity: d.quantity,
+        reason: d.reason,
+        returnedAt: d.returned_at,
+        isExpired: d.ppe ? isPast(addDays(new Date(d.delivery_date), d.ppe.lifespan_days || 180)) : false
+      }))
     })
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const finalY = (doc as any).lastAutoTable?.finalY || 60
-    doc.text(`Impresso em: ${emitDate} pelo Sistema Antares SESMT`, 14, finalY + 10)
-
-    doc.save(`Ficha_NR06_${emp.full_name.replace(/\s+/g, '_')}.pdf`)
   }
 
   const getWorkplaceName = (id: string | null) => {
@@ -240,9 +215,9 @@ export default function EmployeesPage() {
         <div>
           <h1 className="text-2xl font-black tracking-tighter text-slate-800 flex items-center">
             <Users className="w-6 h-6 mr-2 text-[#8B1A1A]" />
-            Equipe Antares
+            Equipe {COMPANY_CONFIG.shortName}
           </h1>
-          <p className="text-slate-500 text-sm mt-1 font-medium">Gestão de prontuários de EPI sincronizada com o Supabase.</p>
+          <p className="text-slate-500 text-sm mt-1 font-medium">Gestão de prontuários de EPI sincronizada com o {COMPANY_CONFIG.systemName}.</p>
         </div>
         {canEdit ? (
           <button 
@@ -367,7 +342,7 @@ export default function EmployeesPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <h2 className="font-black text-slate-800 uppercase tracking-tighter text-xl">Novo Cadastro Antares</h2>
+              <h2 className="font-black text-slate-800 uppercase tracking-tighter text-xl">Novo Cadastro {COMPANY_CONFIG.shortName}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)} 
                 className="text-slate-400 hover:text-slate-600 transition-colors"

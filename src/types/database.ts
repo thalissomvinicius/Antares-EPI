@@ -76,6 +76,7 @@ export type DeliveryWithRelations = Delivery & {
   employee?: {
     full_name: string;
     cpf: string;
+    job_title?: string;
   };
   ppe?: {
     name: string;

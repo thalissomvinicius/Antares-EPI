@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect } from "react"
 import { Users, AlertTriangle, Search, CheckCircle2, FileDown, Loader2, ArrowRightLeft, ShieldAlert, Fingerprint, PenLine } from "lucide-react"
 import SignatureCanvas from "react-signature-canvas"
-import jsPDF from "jspdf"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { api } from "@/services/api"
 import { Employee, PPE, Workplace, DeliveryWithRelations } from "@/types/database"
 import { FaceCamera } from "@/components/ui/FaceCamera"
+import { COMPANY_CONFIG } from "@/config/company"
+import { generateReturnPDF } from "@/utils/pdfGenerator"
 
 export default function ReturnsPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -82,57 +83,6 @@ export default function ReturnsPage() {
     }
   }
 
-  const generateReceiptPDF = (signatureBase64: string, newDeliveryId?: string) => {
-    const doc = new jsPDF()
-    doc.setFillColor(139, 26, 26)
-    doc.rect(0, 0, 210, 30, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(18)
-    doc.setFont("helvetica", "bold")
-    doc.text("RECIBO DE BAIXA / SUBSTITUIÇÃO E.P.I.", 105, 18, { align: "center" })
-
-    doc.setTextColor(0, 0, 0)
-    doc.setFontSize(12)
-    doc.text("DADOS DO COLABORADOR", 15, 40)
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Nome: ${selectedEmployee?.full_name}`, 15, 46)
-    doc.text(`CPF: ${selectedEmployee?.cpf}`, 15, 51)
-
-    doc.setFontSize(12)
-    doc.setFont("helvetica", "bold")
-    doc.text("ITEM DEVOLVIDO / BAIXADO", 15, 65)
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Equipamento: ${deliveryToReturn?.ppe?.name}`, 15, 71)
-    doc.text(`Motivo da Baixa: ${returnMotive}`, 15, 76)
-
-    if (needsReplacement && replacementPpeId) {
-      const newPpe = ppes.find(p => p.id === replacementPpeId)
-      doc.setFontSize(12)
-      doc.setFont("helvetica", "bold")
-      doc.text("NOVO ITEM ENTREGUE (SUBSTITUIÇÃO)", 15, 90)
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
-      doc.text(`Equipamento: ${newPpe?.name} (CA ${newPpe?.ca_number})`, 15, 96)
-    }
-
-    const term = needsReplacement 
-      ? "Confirmo a devolução do item antigo e o recebimento do novo equipamento listado acima em perfeitas condições."
-      : "Confirmo a devolução do item antigo, encerrando minha responsabilidade sobre o mesmo."
-    
-    doc.setFont("helvetica", "bold")
-    doc.text("TERMO DE ACEITE", 15, 110)
-    doc.setFont("helvetica", "normal")
-    doc.text(doc.splitTextToSize(term, 180), 15, 116)
-
-    doc.rect(15, 130, 180, 50)
-    doc.addImage(signatureBase64, 'PNG', 65, 135, 80, 25)
-    doc.text(`Assinatura (${authMethod}): ${selectedEmployee?.full_name}`, 105, 175, { align: "center" })
-
-    return doc.output('blob')
-  }
-
   const saveReturn = async (signatureDataUrl: string) => {
     if (!deliveryToReturn || !selectedEmployee) return
     
@@ -144,6 +94,8 @@ export default function ReturnsPage() {
     try {
       setIsSaving(true)
       
+      const newPpe = needsReplacement ? ppes.find(p => p.id === replacementPpeId) : undefined;
+
       // 1. Dar Baixa no Antigo
       await api.returnDelivery(deliveryToReturn.id, returnMotive)
 
@@ -164,7 +116,17 @@ export default function ReturnsPage() {
         }, signatureFile)
       }
 
-      const pdfBlob = generateReceiptPDF(signatureDataUrl)
+      const pdfBlob = generateReturnPDF({
+        employeeName: selectedEmployee.full_name,
+        employeeCpf: selectedEmployee.cpf,
+        returnedItemName: deliveryToReturn.ppe?.name || "EPI",
+        returnMotive: returnMotive,
+        newItemName: newPpe?.name,
+        newItemCa: newPpe?.ca_number,
+        authMethod: authMethod,
+        signatureBase64: signatureDataUrl,
+      })
+      
       setLastPdfUrl(URL.createObjectURL(pdfBlob))
       setIsSaved(true)
 
@@ -207,9 +169,9 @@ export default function ReturnsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tighter flex items-center">
           <ArrowRightLeft className="w-6 h-6 mr-2 text-[#8B1A1A]" /> 
-          Baixas e Substituições
+          Baixas e Substituições {COMPANY_CONFIG.shortName}
         </h1>
-        <p className="text-slate-500 font-medium text-sm">Devolução e troca de equipamentos desgastados.</p>
+        <p className="text-slate-500 font-medium text-sm">Devolução e troca de equipamentos desgastados no {COMPANY_CONFIG.systemName}.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

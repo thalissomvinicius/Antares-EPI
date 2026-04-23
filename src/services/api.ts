@@ -55,20 +55,54 @@ export const api = {
     return data as Employee[];
   },
 
-  async addEmployee(employee: Omit<Employee, 'id' | 'created_at'>) {
+  async addEmployee(employee: Omit<Employee, 'id' | 'created_at'>, photoFile?: File) {
+    let photoUrl = employee.photo_url;
+
+    if (photoFile) {
+      const fileName = `emp_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+      const { error: storageError } = await supabase.storage
+        .from('ppe_signatures') // Reusing same bucket or could use another
+        .upload(fileName, photoFile);
+      
+      if (storageError) throw storageError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('ppe_signatures')
+        .getPublicUrl(fileName);
+      
+      photoUrl = publicUrl;
+    }
+
     const { data, error } = await supabase
       .from('employees')
-      .insert([employee])
+      .insert([{ ...employee, photo_url: photoUrl }])
       .select();
     
     if (error) throw error;
     return data[0] as Employee;
   },
 
-  async updateEmployee(id: string, updates: Partial<Employee>) {
+  async updateEmployee(id: string, updates: Partial<Employee>, photoFile?: File) {
+    let photoUrl = updates.photo_url;
+
+    if (photoFile) {
+      const fileName = `emp_${Date.now()}_${id}.png`;
+      const { error: storageError } = await supabase.storage
+        .from('ppe_signatures')
+        .upload(fileName, photoFile);
+      
+      if (storageError) throw storageError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('ppe_signatures')
+        .getPublicUrl(fileName);
+      
+      photoUrl = publicUrl;
+    }
+
     const { data, error } = await supabase
       .from('employees')
-      .update(updates)
+      .update({ ...updates, ...(photoFile ? { photo_url: photoUrl } : {}) })
       .eq('id', id)
       .select();
     
@@ -136,7 +170,7 @@ export const api = {
       .from('deliveries')
       .select(`
         *,
-        employee:employees(full_name, cpf),
+        employee:employees(full_name, cpf, job_title),
         ppe:ppes(name, ca_number, cost, lifespan_days),
         workplace:workplaces(name)
       `)

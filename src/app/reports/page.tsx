@@ -1,19 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TrendingDown, Download, BarChart3 as BarChartIcon, PieChart as PieChartIcon, ShieldCheck, Loader2, HardDrive } from "lucide-react"
+import { TrendingDown, Download, BarChart3 as BarChartIcon, PieChart as PieChartIcon, ShieldCheck, Loader2, HardDrive, FileSpreadsheet } from "lucide-react"
 import { api } from "@/services/api"
 import { startOfMonth, isAfter } from "date-fns"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { Skeleton } from "@/components/ui/Skeleton"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts"
+import { exportDeliveriesToExcel } from "@/utils/excelExporter"
+import { DeliveryWithRelations } from "@/types/database"
 
 
 export default function ReportsPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [allDeliveries, setAllDeliveries] = useState<DeliveryWithRelations[]>([])
   const [stats, setStats] = useState([
     { label: "Investimento EPIs (Mês)", value: "R$ 0,00", change: "Atualizando..." },
     { label: "Entregas Totais", value: "0", change: "Total" },
@@ -79,6 +82,7 @@ export default function ReportsPage() {
             .sort((a, b) => b.value - a.value)
             .slice(0, 5)
         setPpeUsageData(ppeStats)
+        setAllDeliveries(deliveryData)
 
         setStats([
           { label: "Investimento EPIs (Mês)", value: `R$ ${monthTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, change: `${monthDeliveries.length} itens` },
@@ -297,16 +301,20 @@ export default function ReportsPage() {
             </div>
         </div>
         <div className="flex gap-4 w-full sm:w-auto relative z-10">
-            <button className="flex-1 sm:flex-none border border-slate-700 bg-slate-800 text-white px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-all flex items-center justify-center">
-                <HardDrive className="w-4 h-4 mr-2" />
-                Por Unidade
+            <button 
+              onClick={() => exportDeliveriesToExcel(allDeliveries)}
+              disabled={allDeliveries.length === 0}
+              className="flex-1 sm:flex-none border border-slate-700 bg-slate-800 text-white px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-all flex items-center justify-center disabled:opacity-40 gap-2"
+            >
+                <FileSpreadsheet className="w-4 h-4 text-green-400" />
+                Excel
             </button>
             <button 
                 onClick={() => window.print()}
-                className="flex-1 sm:flex-none bg-white text-slate-900 px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-50 transition-all flex items-center justify-center border-b-4 border-slate-200"
+                className="flex-1 sm:flex-none bg-white text-slate-900 px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-50 transition-all flex items-center justify-center border-b-4 border-slate-200 gap-2"
             >
-                <Download className="w-4 h-4 mr-2 text-[#8B1A1A]" />
-                Consolidado
+                <Download className="w-4 h-4 text-[#8B1A1A]" />
+                PDF
             </button>
         </div>
       </div>

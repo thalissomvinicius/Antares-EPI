@@ -6,6 +6,7 @@ import { api } from "@/services/api"
 import { PPE } from "@/types/database"
 import { Skeleton } from "@/components/ui/Skeleton"
 import Link from "next/link"
+import { COMPANY_CONFIG } from "@/config/company"
 
 export default function PpesPage() {
   const [ppes, setPpes] = useState<PPE[]>([])
@@ -84,13 +85,13 @@ export default function PpesPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
            <div className="flex items-center gap-2 mb-1">
-             <span className="bg-[#8B1A1A] text-white text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase italic">Catálogo Técnico Antares</span>
+             <span className="bg-[#8B1A1A] text-white text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase italic">Catálogo Técnico {COMPANY_CONFIG.shortName}</span>
           </div>
           <h1 className="text-2xl font-black tracking-tighter text-slate-800 flex items-center uppercase text-3xl sm:text-2xl">
             <Shield className="w-6 h-6 mr-2 text-[#8B1A1A]" />
-            EPIs e CAs
+            EPIs e CAs {COMPANY_CONFIG.shortName}
           </h1>
-          <p className="text-slate-500 text-sm mt-1 font-medium">Gestão técnica de conformidade e saldo de equipamentos.</p>
+          <p className="text-slate-500 text-sm mt-1 font-medium">Gestão técnica de conformidade no {COMPANY_CONFIG.systemName}.</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
             <Link 
