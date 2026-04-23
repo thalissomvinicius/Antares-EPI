@@ -15,7 +15,7 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
 
   if (isLoginPage || !user) {
     return (
-      <main className="flex-1 w-full h-[100dvh] overflow-y-auto">
+      <main className="flex-1 w-full flex flex-col">
         {children}
       </main>
     )

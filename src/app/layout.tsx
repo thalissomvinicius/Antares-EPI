@@ -32,7 +32,7 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${plusJakarta.variable} ${jetBrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 overflow-hidden">
+      <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
         <AuthProvider>
           <ClientShell>
             {children}
