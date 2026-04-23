@@ -4,10 +4,7 @@ import { useState, useEffect } from "react"
 import { Users, Plus, Search, X, Loader2, HardDrive, FileDown, ShieldAlert, History, UserMinus, ShieldCheck, Lock, Camera } from "lucide-react"
 import { api } from "@/services/api"
 import { Employee, Workplace, DeliveryWithRelations } from "@/types/database"
-import jsPDF from "jspdf"
-import autoTable from "jspdf-autotable"
 import { format, addDays, isPast } from "date-fns"
-import { ptBR } from "date-fns/locale"
 import { useAuth } from "@/contexts/AuthContext"
 import { Skeleton } from "@/components/ui/Skeleton"
 import { FaceCamera } from "@/components/ui/FaceCamera"
@@ -37,7 +34,7 @@ export default function EmployeesPage() {
     cpf: string;
     workplace_id: string;
     photo_url?: string | null;
-    face_descriptor?: any | null;
+    face_descriptor?: number[] | null;
   }>({ 
     name: "", 
     role: "", 
@@ -356,7 +353,7 @@ export default function EmployeesPage() {
               <div className="p-6">
                 <FaceCamera 
                   onCapture={(desc, img) => {
-                    setFormData({ ...formData, face_descriptor: desc, photo_url: img });
+                    setFormData({ ...formData, face_descriptor: Array.from(desc), photo_url: img });
                     setIsFaceCameraOpen(false);
                   }}
                   onCancel={() => setIsFaceCameraOpen(false)}
@@ -367,8 +364,13 @@ export default function EmployeesPage() {
               <div className="flex flex-col items-center mb-4">
                 {formData.photo_url ? (
                   <div className="relative">
-                    <img src={formData.photo_url} alt="Biometria" className="w-24 h-24 rounded-full object-cover border-4 border-green-500" />
-                    <button type="button" onClick={() => setFormData({...formData, photo_url: null, face_descriptor: null})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
+                    <img src={formData.photo_url} alt="Biometria capturada" className="w-24 h-24 rounded-full object-cover border-4 border-green-500" />
+                    <button 
+                      type="button" 
+                      onClick={() => setFormData({...formData, photo_url: null, face_descriptor: null})} 
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                      title="Remover biometria"
+                    >
                       <X className="w-4 h-4" />
                     </button>
                     <span className="block text-center text-[10px] text-green-600 font-bold uppercase mt-2">Biometria Cadastrada</span>

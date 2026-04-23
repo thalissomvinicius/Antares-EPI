@@ -255,6 +255,7 @@ export default function ReturnsPage() {
                       className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 font-bold outline-none focus:border-[#8B1A1A]"
                       value={returnMotive}
                       onChange={(e) => setReturnMotive(e.target.value)}
+                      title="Motivo da Baixa"
                     >
                       <option value="Desgaste/Validade">Desgaste ou Fim da Validade (Requer Novo)</option>
                       <option value="Dano">Dano / Quebra (Requer Novo)</option>
@@ -273,6 +274,7 @@ export default function ReturnsPage() {
                         className="w-full bg-white border border-blue-200 rounded-xl p-3 font-bold text-sm outline-none focus:border-blue-500"
                         value={replacementPpeId}
                         onChange={(e) => setReplacementPpeId(e.target.value)}
+                        title="EPI Substituto"
                       >
                         <option value="">Selecione o EPI que será entregue agora...</option>
                         {ppes.map(p => <option key={p.id} value={p.id}>{p.name} (CA {p.ca_number})</option>)}

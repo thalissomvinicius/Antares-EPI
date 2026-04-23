@@ -83,6 +83,7 @@ export function MobileNav() {
               <button 
                 onClick={() => setIsMenuOpen(false)}
                 className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400"
+                title="Fechar menu"
               >
                 <X className="w-6 h-6" />
               </button>

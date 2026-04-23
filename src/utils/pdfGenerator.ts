@@ -168,7 +168,7 @@ export function generateDeliveryPDF(data: DeliveryPDFData): Blob {
     doc.roundedRect(14, sigY, 65, 55, 3, 3, "F")
     try {
       doc.addImage(data.signatureBase64, 'JPEG', 14, sigY, 65, 55)
-    } catch (_) { /* silently fail */ }
+    } catch { /* silently fail */ }
 
     // Facial auth badge
     doc.setFillColor(220, 252, 231) // green-100
@@ -200,7 +200,7 @@ export function generateDeliveryPDF(data: DeliveryPDFData): Blob {
     doc.roundedRect(14, sigY, sigBoxW, 50, 3, 3, "FD")
     try {
       doc.addImage(data.signatureBase64, 'PNG', (pageWidth - 80) / 2, sigY + 5, 80, 30)
-    } catch (_) { /* */ }
+    } catch { /* */ }
     doc.setLineWidth(0.5)
     doc.line(40, sigY + 42, pageWidth - 40, sigY + 42)
     doc.setFontSize(7.5)
@@ -309,7 +309,7 @@ export function generateReturnPDF(data: ReturnPDFData): Blob {
     } else {
       doc.addImage(data.signatureBase64, 'PNG', (pageWidth - 80) / 2, sigY + 5, 80, 30)
     }
-  } catch (_) { /* */ }
+  } catch { /* */ }
   doc.setLineWidth(0.5)
   doc.line(40, sigY + 42, pageWidth - 40, sigY + 42)
   doc.setFontSize(7.5)

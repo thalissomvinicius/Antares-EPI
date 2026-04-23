@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TrendingDown, Download, BarChart3 as BarChartIcon, PieChart as PieChartIcon, ShieldCheck, Loader2, HardDrive, FileSpreadsheet } from "lucide-react"
+import { TrendingDown, Download, BarChart3 as BarChartIcon, PieChart as PieChartIcon, ShieldCheck, Loader2, FileSpreadsheet } from "lucide-react"
 import { api } from "@/services/api"
 import { startOfMonth, isAfter } from "date-fns"
 import { useAuth } from "@/contexts/AuthContext"

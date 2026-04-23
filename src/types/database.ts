@@ -9,7 +9,7 @@ export type Employee = {
   workplace_id: string | null;
   termination_date?: string | null;
   photo_url?: string | null;
-  face_descriptor?: any | null; // Armazenado como JSONB
+  face_descriptor?: number[] | null; // Armazenado como JSONB
   created_at?: string;
 };
 
