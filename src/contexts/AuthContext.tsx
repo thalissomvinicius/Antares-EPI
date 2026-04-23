@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .from('profiles')
             .select('role')
             .eq('id', session.user.id)
-            .single()
+            .maybeSingle()
 
           const userData = {
             ...session.user,

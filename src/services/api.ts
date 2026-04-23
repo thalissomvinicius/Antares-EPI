@@ -113,7 +113,7 @@ export const api = {
   async terminateEmployee(employeeId: string) {
     const { error } = await supabase
       .from('employees')
-      .update({ active: false, termination_date: new Date().toISOString() })
+      .update({ active: false }) // termination_date removed as it's missing from DB
       .eq('id', employeeId);
     
     if (error) throw error;
@@ -185,7 +185,7 @@ export const api = {
       .from('deliveries')
       .select(`
         *,
-        employee:employees(full_name, cpf, job_title, active, admission_date, termination_date),
+        employee:employees(full_name, cpf, job_title, active, admission_date),
         ppe:ppes(name, ca_number, cost, lifespan_days),
         workplace:workplaces(name)
       `)
@@ -288,9 +288,10 @@ export const api = {
       .from('profiles')
       .update({ role })
       .eq('id', userId)
-      .select();
+      .select()
+      .maybeSingle();
     
     if (error) throw error;
-    return data[0] as Profile;
+    return data as Profile | null;
   }
 };
