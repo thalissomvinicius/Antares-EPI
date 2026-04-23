@@ -288,51 +288,51 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel }: FaceCamera
   // ── INSTRUCTIONS SCREEN ──
   if (showInstructions) {
     return (
-      <div className="bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl sm:rounded-3xl p-5 sm:p-8 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6 border-2 border-slate-800">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 flex flex-col items-center justify-center text-center space-y-4 sm:space-y-6 border border-slate-200 shadow-xl shadow-slate-200/50">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#8B1A1A]/10 rounded-full flex items-center justify-center text-[#8B1A1A]">
           <UserCheck className="w-8 h-8 sm:w-10 sm:h-10" />
         </div>
         <div className="space-y-1.5">
-          <h3 className="text-white font-black uppercase tracking-tight text-base sm:text-xl">Instruções de Biometria</h3>
-          <p className="text-slate-400 text-[11px] sm:text-xs leading-relaxed max-w-[300px]">
+          <h3 className="text-slate-800 font-black uppercase tracking-tighter text-base sm:text-xl">Instruções de Biometria</h3>
+          <p className="text-slate-500 text-[11px] sm:text-xs leading-relaxed max-w-[300px] font-medium">
             Siga as instruções abaixo para garantir uma captura de qualidade:
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full">
-          <div className="bg-slate-800/60 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-700/50">
-            <p className="text-[10px] sm:text-[10px] font-black text-blue-400 uppercase mb-0.5">💡 Iluminação</p>
-            <p className="text-[9px] sm:text-[9px] text-slate-400 leading-tight">Fique de frente para a luz. Evite contraluz.</p>
+          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-100 flex flex-col items-center text-center">
+            <p className="text-[10px] font-black text-slate-700 uppercase mb-1">💡 Iluminação</p>
+            <p className="text-[9px] text-slate-500 leading-tight">Fique de frente para a luz. Evite contraluz.</p>
           </div>
-          <div className="bg-slate-800/60 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-amber-700/30">
-            <p className="text-[10px] sm:text-[10px] font-black text-amber-400 uppercase mb-0.5">🧢 Acessórios</p>
-            <p className="text-[9px] sm:text-[9px] text-slate-400 leading-tight">Remova óculos, chapéus, bonés e protetores.</p>
+          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-100 flex flex-col items-center text-center">
+            <p className="text-[10px] font-black text-slate-700 uppercase mb-1">🧢 Acessórios</p>
+            <p className="text-[9px] text-slate-500 leading-tight">Remova óculos, chapéus, bonés e protetores.</p>
           </div>
-          <div className="bg-slate-800/60 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-700/50">
-            <p className="text-[10px] sm:text-[10px] font-black text-green-400 uppercase mb-0.5">📐 Posição</p>
-            <p className="text-[9px] sm:text-[9px] text-slate-400 leading-tight">Olhe para a câmera e centralize o rosto.</p>
+          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-100 flex flex-col items-center text-center">
+            <p className="text-[10px] font-black text-slate-700 uppercase mb-1">📐 Posição</p>
+            <p className="text-[9px] text-slate-500 leading-tight">Olhe para a câmera e centralize o rosto.</p>
           </div>
-          <div className="bg-slate-800/60 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-700/50">
-            <p className="text-[10px] sm:text-[10px] font-black text-purple-400 uppercase mb-0.5">⏱ Tempo</p>
-            <p className="text-[9px] sm:text-[9px] text-slate-400 leading-tight">Fique parado ~4s. Haverá contagem regressiva.</p>
+          <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-100 flex flex-col items-center text-center">
+            <p className="text-[10px] font-black text-slate-700 uppercase mb-1">⏱ Tempo</p>
+            <p className="text-[9px] text-slate-500 leading-tight">Fique parado ~4s. Haverá contagem regressiva.</p>
           </div>
         </div>
         
-        <div className="bg-amber-900/30 border border-amber-700/40 rounded-xl p-3 w-full">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 w-full">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[10px] text-amber-300/90 text-left leading-relaxed">
-              <strong className="text-amber-300">Atenção:</strong> O sistema pode recusar a captura se detectar bonés, óculos escuros ou iluminação ruim. Remova todos os acessórios antes de iniciar.
+            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-[10px] text-amber-800 text-left leading-relaxed">
+              <strong className="text-amber-900">Atenção:</strong> O sistema pode recusar a captura se detectar bonés, óculos escuros ou iluminação ruim. Remova todos os acessórios antes de iniciar.
             </p>
           </div>
         </div>
 
         <button 
           onClick={() => setShowInstructions(false)}
-          className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white py-3.5 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[11px] sm:text-xs transition-all shadow-xl shadow-blue-900/20"
+          className="w-full bg-[#8B1A1A] hover:bg-[#681313] active:bg-[#501010] text-white py-3.5 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[11px] sm:text-xs transition-all shadow-lg shadow-[#8B1A1A]/20"
         >
           Entendi, Iniciar Câmera
         </button>
-        <button onClick={onCancel} className="text-slate-500 text-[10px] font-bold uppercase hover:text-slate-400 active:text-slate-300">Voltar para assinatura manual</button>
+        <button onClick={onCancel} className="text-[#8B1A1A] text-[10px] font-bold uppercase hover:underline">Voltar para assinatura manual</button>
       </div>
     )
   }
