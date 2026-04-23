@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Usamos o Service Role Key para ignorar o RLS do Supabase, 
-// pois esta rota é chamada por usuários públicos (sem sessão).
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: Request) {
   try {
+    // Inicializa o cliente DENTRO da função para evitar erros de build na Vercel 
+    // se a variável de ambiente não estiver disponível durante a compilação estática.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Variáveis de ambiente do Supabase ausentes no servidor.");
+      return NextResponse.json({ error: "Configuração do servidor incompleta" }, { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
     const formData = await req.formData();
     
     const employee_id = formData.get('employee_id') as string;
