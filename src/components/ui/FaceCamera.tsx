@@ -340,8 +340,8 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel }: FaceCamera
   // ── CAPTURED IMAGE PREVIEW ──
   if (capturedImage) {
     return (
-      <div className="bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative flex items-center justify-center border-4 border-green-600" style={{ minHeight: '280px', maxHeight: '60vh' }}>
-        <img src={capturedImage} alt="Foto capturada" className="w-full h-full object-cover" style={{ maxHeight: '60vh' }} />
+      <div className="bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative flex items-center justify-center border-4 border-green-600 face-camera-preview">
+        <img src={capturedImage} alt="Foto capturada" className="w-full h-full object-cover face-camera-preview-img" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 bg-green-900/90 backdrop-blur-md rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center gap-3 border border-green-600/50">
           <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0" />
@@ -356,7 +356,7 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel }: FaceCamera
 
   // ── CAMERA VIEW ──
   return (
-    <div className="bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative shadow-inner flex items-center justify-center border-2 sm:border-4 border-slate-800" style={{ minHeight: '280px', maxHeight: '65vh' }}>
+    <div className="bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative shadow-inner flex items-center justify-center border-2 sm:border-4 border-slate-800 face-camera-container">
       {error ? (
         <div className="text-center p-5 sm:p-6 space-y-3 sm:space-y-4">
           <ShieldAlert className="w-10 h-10 sm:w-12 sm:h-12 text-red-500 mx-auto" />
@@ -374,10 +374,9 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel }: FaceCamera
             muted 
             playsInline 
             onPlay={handleVideoPlay}
-            className={`w-full h-full object-cover transition-opacity duration-500 ${!isCameraActive ? 'opacity-0' : 'opacity-100'}`}
-            style={{ transform: 'scaleX(-1)', minHeight: '280px', maxHeight: '65vh' }}
+            className={`w-full h-full object-cover transition-opacity duration-500 face-camera-video ${!isCameraActive ? 'opacity-0' : 'opacity-100'}`}
           />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ transform: 'scaleX(-1)' }} />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none face-camera-mirror" />
           
           {/* Circular guide */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">

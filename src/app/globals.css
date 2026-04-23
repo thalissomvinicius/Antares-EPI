@@ -128,3 +128,28 @@
     @apply font-sans;
   }
 }
+
+/* FaceCamera component styles */
+.face-camera-container {
+  min-height: 280px;
+  max-height: 65vh;
+}
+
+.face-camera-preview {
+  min-height: 280px;
+  max-height: 60vh;
+}
+
+.face-camera-preview-img {
+  max-height: 60vh;
+}
+
+.face-camera-mirror {
+  transform: scaleX(-1);
+}
+
+.face-camera-video {
+  transform: scaleX(-1);
+  min-height: 280px;
+  max-height: 65vh;
+}
