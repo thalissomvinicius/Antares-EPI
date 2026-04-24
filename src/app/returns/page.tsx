@@ -10,6 +10,7 @@ import { Employee, PPE, Delivery, DeliveryWithRelations } from "@/types/database
 import { FaceCamera } from "@/components/ui/FaceCamera"
 import { COMPANY_CONFIG } from "@/config/company"
 import { generateReturnPDF } from "@/utils/pdfGenerator"
+import { formatCpf } from "@/utils/cpf"
 
 export default function ReturnsPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -204,7 +205,7 @@ export default function ReturnsPage() {
                 className={`w-full text-left p-3 rounded-xl mb-1 transition-all flex flex-col ${selectedEmployee?.id === emp.id ? 'bg-[#8B1A1A]/10 border border-[#8B1A1A]/30' : 'hover:bg-slate-50 border border-transparent'}`}
               >
                 <span className={`font-black text-xs uppercase tracking-tighter truncate w-full ${selectedEmployee?.id === emp.id ? 'text-[#8B1A1A]' : 'text-slate-700'}`}>{emp.full_name}</span>
-                <span className="text-[9px] text-slate-400 font-bold">{emp.cpf}</span>
+                <span className="text-[9px] text-slate-400 font-bold">{formatCpf(emp.cpf)}</span>
               </button>
             ))}
           </div>

@@ -9,6 +9,7 @@ import { Employee, PPE, Workplace, Delivery } from "@/types/database"
 import { FaceCamera } from "@/components/ui/FaceCamera"
 import { generateDeliveryPDF } from "@/utils/pdfGenerator"
 import { COMPANY_CONFIG } from "@/config/company"
+import { formatCpf } from "@/utils/cpf"
 
 export default function DeliveryPage() {
   const [step, setStep] = useState(1)
@@ -286,7 +287,7 @@ export default function DeliveryPage() {
                                 {emp.cpf && (
                                   <div className="flex items-center gap-2 mt-1.5">
                                     <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-widest">
-                                      CPF: {emp.cpf}
+                                      CPF: {formatCpf(emp.cpf)}
                                     </span>
                                   </div>
                                 )}

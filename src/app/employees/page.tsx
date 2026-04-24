@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton"
 import { FaceCamera } from "@/components/ui/FaceCamera"
 import { COMPANY_CONFIG } from "@/config/company"
 import { generateNR06PDF } from "@/utils/pdfGenerator"
+import { formatCpf, isValidCpf } from "@/utils/cpf"
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -84,6 +85,10 @@ export default function EmployeesPage() {
   const handleSaveEmployee = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name) return
+    if (formData.cpf && !isValidCpf(formData.cpf)) {
+      alert("O CPF informado é inválido. Por favor, verifique.")
+      return
+    }
 
     try {
       setIsSaving(true)
@@ -322,7 +327,7 @@ export default function EmployeesPage() {
                     <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-5">
                         <p className="font-bold text-slate-800">{emp.full_name}</p>
-                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">{emp.cpf}</p>
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">{formatCpf(emp.cpf)}</p>
                     </td>
                     <td className="px-6 py-5 text-slate-500 font-medium italic">
                         {emp.job_title} <span className="mx-1 text-slate-200">•</span> {emp.department}
@@ -467,13 +472,22 @@ export default function EmployeesPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">CPF</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                    CPF
+                    {formData.cpf && !isValidCpf(formData.cpf) && (
+                      <span className="text-red-500 text-[8px] font-bold">CPF Inválido</span>
+                    )}
+                    {formData.cpf && isValidCpf(formData.cpf) && (
+                      <span className="text-green-500 text-[8px] font-bold">✓ Válido</span>
+                    )}
+                  </label>
                   <input 
                     type="text" 
                     value={formData.cpf}
-                    onChange={(e) => setFormData({...formData, cpf: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-[#8B1A1A] focus:outline-none transition-all font-bold" 
+                    onChange={(e) => setFormData({...formData, cpf: formatCpf(e.target.value)})}
+                    className={`w-full bg-slate-50 border ${formData.cpf && !isValidCpf(formData.cpf) ? 'border-red-300 focus:border-red-500' : 'border-slate-200 focus:border-[#8B1A1A]'} rounded-xl px-4 py-3 text-sm focus:outline-none transition-all font-bold`} 
                     placeholder="000.000.000-00"
+                    maxLength={14}
                   />
                 </div>
                 <div className="space-y-2">

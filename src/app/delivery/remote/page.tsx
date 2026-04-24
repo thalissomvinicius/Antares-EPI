@@ -9,6 +9,7 @@ import { Employee, PPE, Workplace } from "@/types/database"
 import { FaceCamera } from "@/components/ui/FaceCamera"
 import { generateDeliveryPDF } from "@/utils/pdfGenerator"
 import { COMPANY_CONFIG } from "@/config/company"
+import { formatCpf } from "@/utils/cpf"
 
 interface DeliveryData {
   e: string // employee id
@@ -107,14 +108,7 @@ function RemoteDeliveryContent() {
     }
   }, [searchParams])
 
-  // ── CPF formatter (xxx.xxx.xxx-xx) ──
-  const formatCpf = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 11)
-    if (digits.length <= 3) return digits
-    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`
-    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`
-    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`
-  }
+  // Local formatter removed in favor of central utility
 
   const handleCpfChange = (value: string) => {
     setInputCpf(formatCpf(value))
