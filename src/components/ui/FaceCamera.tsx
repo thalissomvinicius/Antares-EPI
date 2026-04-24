@@ -8,9 +8,10 @@ interface FaceCameraProps {
   onCapture: (descriptor: Float32Array, imageBase64: string) => void;
   targetDescriptor?: Float32Array;
   onCancel: () => void;
+  cancelLabel?: string;
 }
 
-export function FaceCamera({ onCapture, targetDescriptor, onCancel }: FaceCameraProps) {
+export function FaceCamera({ onCapture, targetDescriptor, onCancel, cancelLabel = "Voltar para assinatura manual" }: FaceCameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -332,7 +333,7 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel }: FaceCamera
         >
           Entendi, Iniciar Câmera
         </button>
-        <button onClick={onCancel} className="text-[#8B1A1A] text-[10px] font-bold uppercase hover:underline">Voltar para assinatura manual</button>
+        <button onClick={onCancel} className="text-[#8B1A1A] text-[10px] font-bold uppercase hover:underline">{cancelLabel}</button>
       </div>
     )
   }

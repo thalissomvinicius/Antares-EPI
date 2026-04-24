@@ -396,6 +396,7 @@ export default function EmployeesPage() {
                     setIsFaceCameraOpen(false);
                   }}
                   onCancel={() => setIsFaceCameraOpen(false)}
+                  cancelLabel="Cancelar Biometria"
                 />
               </div>
             ) : (

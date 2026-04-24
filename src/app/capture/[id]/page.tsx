@@ -117,6 +117,7 @@ export default function RemoteCapturePage() {
              <FaceCamera 
                 onCapture={handleCapture}
                 onCancel={() => setIsCapturing(false)}
+                cancelLabel="Cancelar"
              />
           </div>
         </div>
