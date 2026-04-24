@@ -74,7 +74,7 @@ export function MobileNav() {
           ></div>
           
           {/* Menu Content */}
-          <div className="absolute bottom-0 w-full bg-white rounded-t-[2.5rem] shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[85vh]">
+          <div className="absolute bottom-0 w-full bg-white rounded-t-[2.5rem] shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[80dvh]">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-[2.5rem]">
               <div className="flex flex-col">
                 <h3 className="font-black text-slate-800 uppercase tracking-tighter text-xl">Menu Geral</h3>
@@ -89,7 +89,7 @@ export function MobileNav() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 pb-12">
+            <div className="flex-1 overflow-y-auto p-4 pb-16 custom-scrollbar">
               <div className="grid grid-cols-2 gap-3">
                 {/* Repetir os principais também no menu para conveniência */}
                 {filteredItems.map((item) => {

@@ -132,30 +132,30 @@ export default function InventoryPage() {
                     <table className="w-full text-sm text-left">
                         <thead className="text-[10px] text-slate-400 uppercase tracking-widest font-black border-b border-slate-50">
                             <tr>
-                                <th className="px-6 py-4">Equipamento (EPI)</th>
-                                <th className="px-6 py-4">Unidade de Medida</th>
-                                <th className="px-6 py-4 text-center">Saldo Atual</th>
-                                <th className="px-6 py-4 text-center">Status</th>
+                                <th className="px-4 md:px-6 py-4">Equipamento (EPI)</th>
+                                <th className="hidden md:table-cell px-4 md:px-6 py-4">Unidade de Medida</th>
+                                <th className="px-4 md:px-6 py-4 text-center">Saldo</th>
+                                <th className="px-4 md:px-6 py-4 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {filteredPpes.map(ppe => (
                                 <tr key={ppe.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-6 py-5">
-                                        <p className="font-bold text-slate-800 uppercase tracking-tight">{ppe.name}</p>
-                                        <p className="text-[10px] text-slate-400 font-medium">CA: {ppe.ca_number}</p>
+                                    <td className="px-4 md:px-6 py-5">
+                                        <p className="font-bold text-slate-800 uppercase tracking-tight text-xs sm:text-sm">{ppe.name}</p>
+                                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium">CA: {ppe.ca_number}</p>
                                     </td>
-                                    <td className="px-6 py-5 text-slate-400 font-medium italic text-xs">Unidade (Und)</td>
-                                    <td className="px-6 py-5 text-center">
-                                        <span className={`text-xl font-black tracking-tighter ${ppe.current_stock > 10 ? 'text-slate-800' : 'text-[#8B1A1A]'}`}>
+                                    <td className="hidden md:table-cell px-4 md:px-6 py-5 text-slate-400 font-medium italic text-xs">Unidade (Und)</td>
+                                    <td className="px-4 md:px-6 py-5 text-center">
+                                        <span className={`text-lg sm:text-xl font-black tracking-tighter ${ppe.current_stock > 10 ? 'text-slate-800' : 'text-[#8B1A1A]'}`}>
                                             {ppe.current_stock}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-5 text-center">
+                                    <td className="px-4 md:px-6 py-5 text-center">
                                         {ppe.current_stock <= 10 ? (
-                                            <span className="px-2 py-1 bg-red-50 text-[#8B1A1A] text-[8px] font-black rounded uppercase tracking-widest border border-red-100">Estoque Baixo</span>
+                                            <span className="px-1.5 sm:px-2 py-1 bg-red-50 text-[#8B1A1A] text-[7px] sm:text-[8px] font-black rounded uppercase tracking-widest border border-red-100 block sm:inline-block">Estoque<br className="sm:hidden"/> Baixo</span>
                                         ) : (
-                                            <span className="px-2 py-1 bg-green-50 text-green-700 text-[8px] font-black rounded uppercase tracking-widest border border-green-100">Abastecido</span>
+                                            <span className="px-1.5 sm:px-2 py-1 bg-green-50 text-green-700 text-[7px] sm:text-[8px] font-black rounded uppercase tracking-widest border border-green-100 block sm:inline-block">Ok</span>
                                         )}
                                     </td>
                                 </tr>
