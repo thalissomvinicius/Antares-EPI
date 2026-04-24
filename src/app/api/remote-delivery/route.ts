@@ -24,9 +24,29 @@ export async function POST(req: Request) {
     const quantity = parseInt(formData.get('quantity') as string || '1');
     const ip_address = formData.get('ip_address') as string;
     const signatureFile = formData.get('signatureFile') as File | null;
+    const token = formData.get('token') as string | null;
 
     if (!employee_id || !ppe_id) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
+    }
+
+    // Validação de Token se fornecido
+    if (token) {
+      const { data: link, error: linkError } = await supabaseAdmin
+        .from('remote_links')
+        .select('*')
+        .eq('token', token)
+        .eq('status', 'pending')
+        .single()
+
+      if (linkError || !link) {
+        return NextResponse.json({ error: 'Este link já foi utilizado ou é inválido.' }, { status: 403 })
+      }
+
+      if (new Date(link.expires_at) < new Date()) {
+        await supabaseAdmin.from('remote_links').update({ status: 'expired' }).eq('id', link.id)
+        return NextResponse.json({ error: 'Este link expirou.' }, { status: 403 })
+      }
     }
 
     let signatureUrl = null;
@@ -68,6 +88,14 @@ export async function POST(req: Request) {
     if (error) {
       console.error("Database insert error:", error);
       throw error;
+    }
+
+    // 3. Marca link como concluído se existir
+    if (token) {
+      await supabaseAdmin
+        .from('remote_links')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('token', token)
     }
     
     return NextResponse.json({ success: true, data: data[0] });

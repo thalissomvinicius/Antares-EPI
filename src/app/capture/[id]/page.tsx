@@ -126,22 +126,14 @@ function CaptureContent() {
         body: JSON.stringify({
           id: employee!.id,
           photo_url: capturedPhoto,
-          face_descriptor: Array.from(capturedDescriptor)
+          face_descriptor: Array.from(capturedDescriptor),
+          token: linkToken // Passa o token para validação e conclusão no servidor
         })
       })
 
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || "Erro ao salvar a biometria.")
-      }
-
-      // Desativa o link (marca como concluído)
-      if (linkToken) {
-        await fetch('/api/remote-links', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: linkToken })
-        })
       }
 
       setIsSuccess(true)

@@ -177,6 +177,7 @@ function RemoteDeliveryContent() {
       formData.append('quantity', String(deliveryData?.q || 1))
       formData.append('ip_address', ipAddress || 'Remoto')
       formData.append('signatureFile', signatureFile)
+      if (linkToken) formData.append('token', linkToken) // Passa o token para o servidor
 
       const apiRes = await fetch('/api/remote-delivery', {
         method: 'POST',
@@ -185,15 +186,6 @@ function RemoteDeliveryContent() {
       
       const responseData = await apiRes.json()
       if (!apiRes.ok) throw new Error(responseData.error || "Erro ao salvar na nuvem")
-
-      // Mark link as completed if it exists
-      if (linkToken) {
-        await fetch('/api/remote-links', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: linkToken })
-        })
-      }
 
       const pdfBlob = await generateDeliveryPDF({
         employeeName: employee.full_name,

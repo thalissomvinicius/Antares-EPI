@@ -37,10 +37,36 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { id, photo_url, face_descriptor } = body
+    const { id, photo_url, face_descriptor, token } = body
 
     if (!id || !photo_url || !face_descriptor) {
       return NextResponse.json({ error: 'Dados incompletos para registro da biometria.' }, { status: 400 })
+    }
+
+    // Se um token foi fornecido, validamos e marcamos como concluído
+    if (token) {
+      const { data: link, error: linkError } = await supabaseAdmin
+        .from('remote_links')
+        .select('*')
+        .eq('token', token)
+        .eq('status', 'pending')
+        .single()
+
+      if (linkError || !link) {
+        return NextResponse.json({ error: 'Este link já foi utilizado ou é inválido.' }, { status: 403 })
+      }
+
+      // Verifica expiração
+      if (new Date(link.expires_at) < new Date()) {
+        await supabaseAdmin.from('remote_links').update({ status: 'expired' }).eq('id', link.id)
+        return NextResponse.json({ error: 'Este link expirou.' }, { status: 403 })
+      }
+
+      // Marca como concluído
+      await supabaseAdmin
+        .from('remote_links')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', link.id)
     }
 
     const { data, error } = await supabaseAdmin
