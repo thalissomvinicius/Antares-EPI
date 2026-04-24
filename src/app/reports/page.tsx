@@ -249,6 +249,8 @@ export default function ReportsPage() {
           {dateFilter === 'specific_month' && (
             <input 
               type="month"
+              title="Mês Selecionado"
+              placeholder="AAAA-MM"
               value={specificMonth}
               onChange={e => setSpecificMonth(e.target.value)}
               className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold text-xs outline-none focus:border-[#8B1A1A]"

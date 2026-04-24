@@ -215,6 +215,7 @@ export default function DeliveryPage() {
         workplaceName: selectedWorkplace?.name || "Sede",
         ppeName: cart[0].ppeName,
         ppeCaNumber: cart[0].ppeCaNumber,
+        ppeCaExpiry: cart[0].ppeCaExpiry,
         quantity: cart[0].quantity,
         reason: cart[0].reason,
         items: cart.map(item => ({

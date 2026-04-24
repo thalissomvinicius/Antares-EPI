@@ -299,6 +299,7 @@ export default function UsersPage() {
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nível de Acesso (Inicial)</label>
                         <select 
                             value={formData.role}
+                            title="Nível de Acesso"
                             onChange={e => setFormData({...formData, role: e.target.value})}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-[#8B1A1A] font-bold text-sm uppercase"
                         >

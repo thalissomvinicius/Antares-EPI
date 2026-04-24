@@ -4,6 +4,7 @@ import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { COMPANY_CONFIG } from "@/config/company"
 import QRCode from "qrcode"
+import { DeliveryWithRelations } from "@/types/database"
 
 const [r, g, b] = COMPANY_CONFIG.primaryColorRgb
 
@@ -84,7 +85,11 @@ export interface DeliveryPDFData {
   employeeRole: string
   workplaceName: string
   // Single item (backward compat)
+  ppeName?: string
+  ppeCaNumber?: string
   ppeCaExpiry?: string
+  quantity?: number
+  reason?: string
   // Multi-item support
   items?: { ppeName: string; ppeCaNumber: string; caExpiry?: string; quantity: number; reason: string }[]
   authMethod: 'manual' | 'facial'
@@ -99,13 +104,12 @@ export interface DeliveryPDFData {
 export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> {
   const doc = new jsPDF({ format: "a4" })
   const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
   const hash = data.validationHash || Math.random().toString(36).substring(2, 12).toUpperCase()
 
   // Build items array (support both single and multi-item)
   const pdfItems = data.items && data.items.length > 0
     ? data.items
-    : [{ ppeName: data.ppeName, ppeCaNumber: data.ppeCaNumber, caExpiry: data.ppeCaExpiry, quantity: data.quantity, reason: data.reason }]
+    : [{ ppeName: data.ppeName || "", ppeCaNumber: data.ppeCaNumber || "", caExpiry: data.ppeCaExpiry, quantity: data.quantity || 0, reason: data.reason || "" }]
 
   // 1. HEADER (SaaS Premium Style)
   doc.setFillColor(r, g, b)
@@ -181,7 +185,7 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
   })
 
   // 4. CARD: TERMO DE RESPONSABILIDADE
-  // @ts-ignore
+  // @ts-expect-error - jsPDF-autotable adds lastAutoTable to doc
   currentY = doc.lastAutoTable.finalY + 15
   doc.setFillColor(255, 255, 255)
   doc.roundedRect(14, currentY, pageWidth - 28, 25, 2, 2, "S")
@@ -558,6 +562,7 @@ export function generateNR06PDF(data: NR06PDFData): void {
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // @ts-expect-error - jsPDF-autotable adds lastAutoTable to doc
   const finalY = (doc as any).lastAutoTable?.finalY || 200
   const emitDate = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
   doc.setFontSize(7)
@@ -575,7 +580,7 @@ export function generateNR06PDF(data: NR06PDFData): void {
 
 export interface ReportPDFData {
   stats: { label: string; value: string; change: string }[]
-  deliveries: any[] // Array of deliveries to list
+  deliveries: DeliveryWithRelations[] // Array of deliveries to list
   periodTitle?: string
 }
 
