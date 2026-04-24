@@ -5,7 +5,7 @@ import Image from "next/image"
 import SignatureCanvas from "react-signature-canvas"
 import { CheckCircle2, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine, Link2 } from "lucide-react"
 import { api } from "@/services/api"
-import { Employee, PPE, Workplace } from "@/types/database"
+import { Employee, PPE, Workplace, Delivery } from "@/types/database"
 import { FaceCamera } from "@/components/ui/FaceCamera"
 import { generateDeliveryPDF } from "@/utils/pdfGenerator"
 import { COMPANY_CONFIG } from "@/config/company"
@@ -136,7 +136,7 @@ export default function DeliveryPage() {
         employee_id: selectedEmployeeId,
         ppe_id: selectedPpeId,
         workplace_id: selectedWorkplaceId || null,
-        reason: reason as any,
+        reason: reason as Delivery['reason'],
         quantity: quantity,
         ip_address: ipAddress || "Desconhecido",
         signature_url: null
