@@ -26,6 +26,7 @@ export default function ReturnsPage() {
   const [deliveryToReturn, setDeliveryToReturn] = useState<DeliveryWithRelations | null>(null)
   const [returnMotive, setReturnMotive] = useState("Desgaste/Validade")
   const [replacementPpeId, setReplacementPpeId] = useState("")
+  const [replacementSearchTerm, setReplacementSearchTerm] = useState("")
   
   // Auth
   const [authMethod, setAuthMethod] = useState<'manual' | 'facial'>('manual')
@@ -76,6 +77,11 @@ export default function ReturnsPage() {
   }
 
   const needsReplacement = returnMotive !== "Demissão" && returnMotive !== "Erro de Entrega"
+
+  const filteredReplacementPpes = ppes.filter(ppe => 
+    ppe.name.toLowerCase().includes(replacementSearchTerm.toLowerCase()) || 
+    ppe.ca_number.includes(replacementSearchTerm)
+  )
 
   const clearSignature = () => {
     if (sigCanvas.current) {
@@ -177,7 +183,7 @@ export default function ReturnsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Coluna 1: Colaboradores */}
-        <div className="lg:col-span-1 bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden flex flex-col h-[70vh]">
+        <div className="lg:col-span-1 bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden flex flex-col h-[40vh] sm:h-[50vh] lg:h-[70vh]">
           <div className="p-4 border-b border-slate-100">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -205,7 +211,7 @@ export default function ReturnsPage() {
         </div>
 
         {/* Coluna 2: Ação */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl shadow-sm p-6 sm:p-8 min-h-[70vh]">
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl shadow-sm p-6 sm:p-8 min-h-[40vh] lg:min-h-[70vh]">
           {!selectedEmployee ? (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
               <Users className="w-16 h-16 text-slate-300 mb-4" />
@@ -251,18 +257,27 @@ export default function ReturnsPage() {
 
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motivo da Baixa</label>
-                    <select 
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 font-bold outline-none focus:border-[#8B1A1A]"
-                      value={returnMotive}
-                      onChange={(e) => setReturnMotive(e.target.value)}
-                      title="Motivo da Baixa"
-                    >
-                      <option value="Desgaste/Validade">Desgaste ou Fim da Validade (Requer Novo)</option>
-                      <option value="Dano">Dano / Quebra (Requer Novo)</option>
-                      <option value="Perda">Perda / Extravio (Requer Novo)</option>
-                      <option value="Demissão">Demissão / Desligamento (Não requer novo)</option>
-                      <option value="Erro de Entrega">Erro de Lançamento (Cancelar entrega)</option>
-                    </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { val: "Desgaste/Validade", label: "Desgaste ou Fim da Validade" },
+                        { val: "Dano", label: "Dano / Quebra" },
+                        { val: "Perda", label: "Perda / Extravio" },
+                        { val: "Demissão", label: "Demissão / Desligamento" },
+                        { val: "Erro de Entrega", label: "Erro de Lançamento" }
+                      ].map((opt) => (
+                        <button
+                          key={opt.val}
+                          type="button"
+                          onClick={() => setReturnMotive(opt.val)}
+                          className={`p-3 rounded-2xl border text-xs font-black uppercase tracking-tight transition-all flex flex-col items-center justify-center text-center gap-1 ${returnMotive === opt.val ? 'border-[#8B1A1A] bg-red-50 text-[#8B1A1A] shadow-md shadow-red-900/10' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'}`}
+                        >
+                          <span>{opt.label}</span>
+                          <span className={`text-[9px] font-bold ${returnMotive === opt.val ? 'text-red-400' : 'text-slate-400'}`}>
+                            {['Demissão', 'Erro de Entrega'].includes(opt.val) ? '(Não requer novo)' : '(Requer Novo)'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {needsReplacement && (
@@ -270,15 +285,47 @@ export default function ReturnsPage() {
                       <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest flex items-center">
                         <AlertTriangle className="w-3 h-3 mr-1" /> Selecione o EPI Substituto (Nova Entrega)
                       </label>
-                      <select 
-                        className="w-full bg-white border border-blue-200 rounded-xl p-3 font-bold text-sm outline-none focus:border-blue-500"
-                        value={replacementPpeId}
-                        onChange={(e) => setReplacementPpeId(e.target.value)}
-                        title="EPI Substituto"
-                      >
-                        <option value="">Selecione o EPI que será entregue agora...</option>
-                        {ppes.map(p => <option key={p.id} value={p.id}>{p.name} (CA {p.ca_number})</option>)}
-                      </select>
+                      <div className="flex flex-col gap-3 relative">
+                        <input 
+                          type="text"
+                          placeholder="Busca por CA ou Nome..."
+                          value={replacementSearchTerm}
+                          onChange={(e) => setReplacementSearchTerm(e.target.value)}
+                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-2xl px-5 py-4 outline-none focus:border-blue-500 focus:bg-white transition-all font-bold text-sm"
+                        />
+                        
+                        <div className="bg-white border border-blue-200 rounded-2xl overflow-hidden shadow-sm">
+                          <div className="max-h-48 overflow-y-auto divide-y divide-blue-50">
+                            {filteredReplacementPpes.length === 0 ? (
+                              <div className="p-6 text-center text-xs text-blue-400 font-bold uppercase tracking-widest">Nenhum EPI encontrado</div>
+                            ) : (
+                              filteredReplacementPpes.map(ppe => {
+                                const isSelected = replacementPpeId === ppe.id
+                                
+                                return (
+                                  <div 
+                                    key={ppe.id}
+                                    onClick={() => setReplacementPpeId(ppe.id)}
+                                    className={`p-4 cursor-pointer transition-colors flex items-center justify-between ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-blue-50/50 border-l-4 border-transparent'}`}
+                                  >
+                                    <div>
+                                      <p className={`font-black text-sm uppercase tracking-tight ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>
+                                        {ppe.name}
+                                      </p>
+                                      <div className="flex items-center gap-2 mt-1.5">
+                                        <span className="text-[10px] font-bold bg-blue-100/50 text-blue-600 px-2 py-0.5 rounded uppercase tracking-widest">
+                                          CA {ppe.ca_number}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {isSelected && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+                                  </div>
+                                )
+                              })
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
 
