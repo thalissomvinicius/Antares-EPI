@@ -226,8 +226,8 @@ export default function DeliveryPage() {
         const url = `${baseUrl}/delivery/remote?t=${data.link.token}`
         navigator.clipboard.writeText(url)
         toast.success("Link de assinatura remota copiado! Válido por 24h.");
-      } catch (err: any) {
-        const errorMsg = err.message || "Erro desconhecido";
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : "Erro desconhecido";
         toast.error(`Erro ao gerar link: ${errorMsg}. Verifique a tabela 'remote_links'.`);
       }
   }

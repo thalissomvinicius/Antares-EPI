@@ -29,7 +29,6 @@ function RemoteDeliveryContent() {
   const [errorMsg, setErrorMsg] = useState("")
 
   // ── Verification form ──
-  const [inputName, setInputName] = useState("")
   const [inputCpf, setInputCpf] = useState("")
   const [verifyError, setVerifyError] = useState("")
   const [verifyAttempts, setVerifyAttempts] = useState(0)
@@ -121,7 +120,7 @@ function RemoteDeliveryContent() {
           setWorkplace(w || null)
           setPhase('verify') // Go to identity verification
         }
-      } catch (err) {
+      } catch (_err) {
         setErrorMsg("Erro ao processar o link de assinatura.")
         setPhase('error')
       }
@@ -227,9 +226,10 @@ function RemoteDeliveryContent() {
 
       toast.success("Assinatura salva e comprovante gerado!")
       setPhase('done')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
-      toast.error("Erro ao salvar assinatura: " + err.message)
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error("Erro ao salvar assinatura: " + message)
     } finally {
       setIsSaving(false)
     }

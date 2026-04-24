@@ -1,4 +1,7 @@
-import { History, Download, ShieldCheck, Search, Loader2, FileDown } from "lucide-react"
+"use client"
+
+import { useState, useEffect } from "react"
+import { History, ShieldCheck, Search, Loader2, FileDown } from "lucide-react"
 import { api } from "@/services/api"
 import { DeliveryWithRelations } from "@/types/database"
 import { generateDeliveryPDF } from "@/utils/pdfGenerator"
@@ -84,7 +87,7 @@ export default function HistoryPage() {
     }
   }
 
-  const filteredRecords = records.filter(rec => 
+  const filteredRecords = records.filter((rec: DeliveryWithRelations) => 
     rec.employee?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     rec.id.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -134,7 +137,7 @@ export default function HistoryPage() {
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                {filteredRecords.map((rec) => (
+                {filteredRecords.map((rec: DeliveryWithRelations) => (
                     <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="px-6 py-5 font-mono text-[10px] text-slate-400">#{rec.id.slice(0, 8)}</td>
                     <td className="px-6 py-5 font-bold text-slate-800">{rec.employee?.full_name}</td>
