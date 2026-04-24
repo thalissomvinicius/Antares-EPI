@@ -20,6 +20,7 @@ export default function TrainingPage() {
     training_name: "Uso e Guarda de EPI (NR-06)",
     completion_date: format(new Date(), "yyyy-MM-dd"),
   })
+  const [customTrainingName, setCustomTrainingName] = useState("")
 
   const loadData = async () => {
     try {
@@ -49,6 +50,15 @@ export default function TrainingPage() {
     e.preventDefault()
     if (!formData.employee_id) return
 
+    let finalTrainingName = formData.training_name
+    if (formData.training_name === "Outro" && !customTrainingName.trim()) {
+        alert("Por favor, especifique o nome do treinamento.")
+        return
+    }
+    if (formData.training_name === "Outro") {
+        finalTrainingName = customTrainingName
+    }
+
     try {
       setIsSaving(true)
       const completionDate = new Date(formData.completion_date)
@@ -56,7 +66,7 @@ export default function TrainingPage() {
 
       await api.addTraining({
         employee_id: formData.employee_id,
-        training_name: formData.training_name,
+        training_name: finalTrainingName,
         completion_date: formData.completion_date,
         expiry_date: format(expiryDate, "yyyy-MM-dd"),
         status: "Válido"
@@ -64,6 +74,8 @@ export default function TrainingPage() {
 
       await loadData()
       setIsModalOpen(false)
+      setCustomTrainingName("")
+      setFormData(prev => ({ ...prev, training_name: "Uso e Guarda de EPI (NR-06)" }))
     } catch (error) {
       console.error("Erro ao salvar treinamento:", error)
       alert("Erro ao salvar treinamento no banco de dados.")
@@ -216,7 +228,19 @@ export default function TrainingPage() {
                   <option>Integração de Segurança (NR-01)</option>
                   <option>Trabalho em Altura (NR-35)</option>
                   <option>Segurança Elétrica (NR-10)</option>
+                  <option value="Outro">Outro (Especificar...)</option>
                 </select>
+                
+                {formData.training_name === "Outro" && (
+                    <input 
+                      type="text"
+                      placeholder="Digite o nome da Norma ou Treinamento"
+                      value={customTrainingName}
+                      onChange={(e) => setCustomTrainingName(e.target.value)}
+                      className="w-full mt-2 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-[#8B1A1A] transition-all font-bold"
+                      autoFocus
+                    />
+                )}
               </div>
 
               <div className="space-y-2">
