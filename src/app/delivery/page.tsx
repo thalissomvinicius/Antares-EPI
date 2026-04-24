@@ -372,6 +372,7 @@ export default function DeliveryPage() {
                 </div>
                 <input 
                   type="date"
+                  title="Data da Entrega"
                   value={deliveryDate}
                   onChange={(e) => setDeliveryDate(e.target.value)}
                   className="w-full sm:w-auto bg-white border border-slate-200 text-slate-900 rounded-xl px-4 py-2 outline-none focus:border-[#8B1A1A] font-bold text-sm shadow-sm"

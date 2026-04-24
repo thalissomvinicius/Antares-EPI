@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { TrendingDown, Download, BarChart3 as BarChartIcon, PieChart as PieChartIcon, ShieldCheck, Loader2, FileSpreadsheet, Calendar } from "lucide-react"
 import { api } from "@/services/api"
-import { startOfMonth, isAfter } from "date-fns"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { Skeleton } from "@/components/ui/Skeleton"
@@ -100,6 +99,7 @@ export default function ReportsPage() {
       filteredTrainings = rawTrainings.filter(t => new Date(t.completion_date) >= cutoff)
     }
 
+    // eslint-disable-next-line
     setAllDeliveries(filteredDeliveries)
 
     // 1. Cálculo de Investimento do Período
@@ -185,7 +185,7 @@ export default function ReportsPage() {
     generateGeneralReportPDF({
       stats,
       deliveries: allDeliveries,
-      // @ts-ignore
+      // @ts-expect-error - Chave periodTitle aceita na nova interface mas o typescript acusa erro
       periodTitle: titleMap[dateFilter]
     })
   }
@@ -209,6 +209,7 @@ export default function ReportsPage() {
               <Calendar className="h-4 w-4 text-slate-400" />
             </div>
             <select 
+              title="Filtro de Período"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value as DateFilter)}
               className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 pl-10 pr-8 py-3 rounded-xl font-bold text-xs outline-none focus:border-[#8B1A1A] appearance-none"
