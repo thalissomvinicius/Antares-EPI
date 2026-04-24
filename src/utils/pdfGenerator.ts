@@ -567,3 +567,89 @@ export function generateNR06PDF(data: NR06PDFData): void {
   addPageFooter(doc)
   doc.save(`Ficha_NR06_${data.employeeName.replace(/\s+/g, '_')}.pdf`)
 }
+
+// ─────────────────────────────────────────────
+// 3. RELATÓRIO GERAL (ANALYTICS)
+// ─────────────────────────────────────────────
+
+export interface ReportPDFData {
+  stats: { label: string; value: string; change: string }[]
+  deliveries: any[] // Array of deliveries to list
+}
+
+export function generateGeneralReportPDF(data: ReportPDFData) {
+  const doc = new jsPDF({ format: "a4" })
+  const pageWidth = doc.internal.pageSize.getWidth()
+
+  addPageHeader(doc, "RELATÓRIO DE CONFORMIDADE E CUSTOS", "Métricas Globais e Rastreabilidade (NR-06)")
+
+  // Metrics Dashboard
+  let currentY = 50
+  
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "bold")
+  doc.setTextColor(r, g, b)
+  doc.text("MÉTRICAS GLOBAIS", 14, currentY)
+  currentY += 8
+
+  // Draw 4 cards for metrics
+  const cardWidth = (pageWidth - 28 - (3 * 5)) / 4
+  
+  data.stats.forEach((stat, i) => {
+    const x = 14 + (i * (cardWidth + 5))
+    doc.setDrawColor(226, 232, 240)
+    doc.setFillColor(250, 250, 250)
+    doc.roundedRect(x, currentY, cardWidth, 22, 2, 2, "FD")
+    
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7)
+    doc.setTextColor(100, 116, 139)
+    doc.text(stat.label.substring(0, 20), x + 3, currentY + 7)
+    
+    doc.setFontSize(10)
+    doc.setTextColor(30, 41, 59)
+    doc.text(stat.value, x + 3, currentY + 14)
+    
+    doc.setFontSize(6)
+    doc.setTextColor(r, g, b)
+    doc.text(stat.change, x + 3, currentY + 19)
+  })
+
+  currentY += 35
+
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "bold")
+  doc.setTextColor(r, g, b)
+  doc.text("HISTÓRICO RECENTE DE TRANSAÇÕES", 14, currentY)
+  currentY += 5
+
+  const recentDeliveries = data.deliveries.slice(0, 50) // Limit to 50 for the PDF
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Data", "Colaborador", "EPI (C.A.)", "Qtd", "Local"]],
+    body: recentDeliveries.map(d => [
+      format(new Date(d.delivery_date), "dd/MM/yyyy HH:mm"),
+      d.employee?.full_name || 'N/A',
+      `${d.ppe?.name || 'N/A'} (${d.ppe?.ca_number || 'N/A'})`,
+      String(d.quantity),
+      d.workplace?.name || 'Sede'
+    ]),
+    styles: { fontSize: 7, cellPadding: 3, font: "helvetica" },
+    headStyles: { fillColor: [r, g, b], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+    theme: 'grid'
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const finalY = (doc as any).lastAutoTable?.finalY || 200
+  const emitDate = format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
+  doc.setFontSize(7)
+  doc.setFont("helvetica", "italic")
+  doc.setTextColor(100, 116, 139)
+  doc.text(`Relatório gerado em ${emitDate} pelo sistema.`, 14, finalY + 10)
+
+  addPageFooter(doc)
+  doc.save(`Relatorio_Global_EPIs_${format(new Date(), "yyyyMMdd")}.pdf`)
+}

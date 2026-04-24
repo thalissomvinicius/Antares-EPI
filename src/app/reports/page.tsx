@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import { Skeleton } from "@/components/ui/Skeleton"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts"
 import { exportDeliveriesToExcel } from "@/utils/excelExporter"
+import { generateGeneralReportPDF } from "@/utils/pdfGenerator"
 import { DeliveryWithRelations } from "@/types/database"
 
 
@@ -133,6 +134,13 @@ export default function ReportsPage() {
     )
   }
 
+  const handleExportPDF = () => {
+    generateGeneralReportPDF({
+      stats,
+      deliveries: allDeliveries
+    })
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 overflow-hidden">
@@ -147,7 +155,7 @@ export default function ReportsPage() {
             <p className="text-slate-500 text-sm mt-1 font-medium italic">Extração de custos operacionais e conformidade normativa.</p>
         </div>
         <button 
-          onClick={() => window.print()}
+          onClick={handleExportPDF}
           className="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center shadow-sm"
         >
             <Download className="w-4 h-4 mr-2 text-[#8B1A1A]" />
