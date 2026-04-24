@@ -94,7 +94,7 @@ export const api = {
   },
 
   async updateEmployee(id: string, updates: Partial<Employee>, photoFile?: File) {
-    let photoUrl = updates.photo_url;
+    const finalUpdates = { ...updates };
 
     if (photoFile) {
       const fileName = `emp_${Date.now()}_${id}.png`;
@@ -108,12 +108,12 @@ export const api = {
         .from('ppe_signatures')
         .getPublicUrl(fileName);
       
-      photoUrl = publicUrl;
+      finalUpdates.photo_url = publicUrl;
     }
 
     const { data, error } = await supabase
       .from('employees')
-      .update({ ...updates, ...(photoFile ? { photo_url: photoUrl } : {}) })
+      .update(finalUpdates)
       .eq('id', id)
       .select();
     

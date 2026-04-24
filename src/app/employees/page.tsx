@@ -101,15 +101,24 @@ export default function EmployeesPage() {
       }
 
       if (formData.id) {
-        await api.updateEmployee(formData.id, {
+        const updates: any = {
           full_name: formData.name,
           job_title: formData.role || "Geral",
           department: formData.department || `Sede ${COMPANY_CONFIG.shortName}`,
           cpf: formData.cpf || "000.000.000-00",
           workplace_id: formData.workplace_id || null,
-          photo_url: formData.photo_url?.startsWith('http') ? formData.photo_url : (formData.photo_url === null ? null : undefined),
           face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
-        }, photoFile)
+        }
+
+        // Se a foto for nula, explicitamente removemos do banco
+        if (formData.photo_url === null) {
+          updates.photo_url = null
+        } else if (formData.photo_url?.startsWith('http')) {
+          // Se for uma URL externa (não base64), mantemos ela
+          updates.photo_url = formData.photo_url
+        }
+
+        await api.updateEmployee(formData.id, updates, photoFile)
         alert("Cadastro atualizado com sucesso!")
       } else {
         await api.addEmployee({
