@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     const { data: link, error } = await supabaseAdmin
       .from('remote_links')
-      .select('*, employee:employees(id, full_name, cpf, photo_url, face_descriptor)')
+      .select('*, employee:employees(id, full_name, cpf, photo_url, face_descriptor, job_title, department, workplace_id)')
       .eq('token', token)
       .single()
 

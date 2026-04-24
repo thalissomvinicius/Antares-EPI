@@ -49,6 +49,11 @@ function CaptureContent() {
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
   const [capturedDescriptor, setCapturedDescriptor] = useState<Float32Array | null>(null)
 
+  // ── Auto-scroll to top on state change ──
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [cpfVerified, isCapturing, isSuccess, capturedPhoto])
+
   useEffect(() => {
     async function validateLink() {
       try {

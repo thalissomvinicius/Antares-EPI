@@ -50,6 +50,11 @@ function RemoteDeliveryContent() {
   const [location, setLocation] = useState("")
   const [linkToken, setLinkToken] = useState<string>("")
 
+  // ── Auto-scroll to top on phase/method change ──
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [phase, authMethod])
+
   // ── Load delivery data on mount ──
   useEffect(() => {
     const s = searchParams.get('s') // Legacy support

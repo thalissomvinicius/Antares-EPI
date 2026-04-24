@@ -104,7 +104,7 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
 
   // ── Info boxes ──
   const boxY = 46
-  const boxH = 36
+  const boxH = 42 // Increased height for better spacing
   const col = (pageWidth - 28) / 2
 
   doc.setFillColor(248, 250, 252)
@@ -114,8 +114,8 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
   doc.roundedRect(14, boxY, col - 4, boxH, 3, 3, "S")
 
   infoRow(doc, "Colaborador", data.employeeName, 18, boxY + 8)
-  infoRow(doc, "CPF", data.employeeCpf, 18, boxY + 20)
-  infoRow(doc, "Função", data.employeeRole, 18, boxY + 30)
+  infoRow(doc, "CPF", data.employeeCpf, 18, boxY + 22)
+  infoRow(doc, "Cargo / Função", data.employeeRole, 18, boxY + 36)
 
   doc.setFillColor(248, 250, 252)
   doc.roundedRect(14 + col, boxY, col - 4, boxH, 3, 3, "F")
@@ -123,10 +123,10 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
   doc.roundedRect(14 + col, boxY, col - 4, boxH, 3, 3, "S")
 
   infoRow(doc, "Equipamento (EPI)", data.ppeName, 18 + col, boxY + 8)
-  infoRow(doc, "Nº do C.A.", data.ppeCaNumber, 18 + col, boxY + 20)
-  infoRow(doc, "Canteiro / Unidade", data.workplaceName, 18 + col, boxY + 30)
+  infoRow(doc, "Nº do C.A.", data.ppeCaNumber, 18 + col, boxY + 22)
+  infoRow(doc, "Canteiro / Unidade", data.workplaceName, 18 + col, boxY + 36)
 
-  const detY = boxY + boxH + 10
+  const detY = boxY + boxH + 8
   const colW = (pageWidth - 28) / 4
   const details = [
     { label: "Qtd Entregue", value: String(data.quantity) },
