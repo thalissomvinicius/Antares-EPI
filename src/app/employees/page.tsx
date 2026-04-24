@@ -119,6 +119,14 @@ export default function EmployeesPage() {
         }
 
         await api.updateEmployee(formData.id, updates, photoFile)
+        
+        // Atualiza o estado local imediatamente para refletir a mudança
+        setEmployees(prev => prev.map(e => e.id === formData.id ? { 
+          ...e, 
+          ...updates, 
+          photo_url: updates.photo_url !== undefined ? updates.photo_url : e.photo_url 
+        } : e))
+
         alert("Cadastro atualizado com sucesso!")
       } else {
         await api.addEmployee({
@@ -136,6 +144,8 @@ export default function EmployeesPage() {
       }
       
       setLoading(true)
+      // Pequeno delay para garantir propagação no Supabase antes de recarregar
+      await new Promise(r => setTimeout(r, 500))
       await loadData() // Recarrega a lista
       setFormData({ id: undefined, name: "", role: "", department: "", cpf: "", workplace_id: "", photo_url: null, face_descriptor: null })
       setIsModalOpen(false)
