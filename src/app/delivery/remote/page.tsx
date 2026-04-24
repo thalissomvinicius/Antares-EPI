@@ -120,7 +120,7 @@ function RemoteDeliveryContent() {
           setWorkplace(w || null)
           setPhase('verify') // Go to identity verification
         }
-      } catch (_err) {
+      } catch {
         setErrorMsg("Erro ao processar o link de assinatura.")
         setPhase('error')
       }
