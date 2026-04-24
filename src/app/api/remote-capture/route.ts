@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(employee)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro GET /api/remote-capture:", error)
     return NextResponse.json({ error: 'Erro interno do servidor.' }, { status: 500 })
   }
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, employee: data })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro POST /api/remote-capture:", error)
     return NextResponse.json({ error: 'Erro interno do servidor.' }, { status: 500 })
   }

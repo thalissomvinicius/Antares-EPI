@@ -72,8 +72,9 @@ export async function POST(req: Request) {
     
     return NextResponse.json({ success: true, data: data[0] });
 
-  } catch (err: any) {
-    console.error('Remote delivery save error:', err);
-    return NextResponse.json({ error: err.message || "Erro interno do servidor" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error('Remote delivery save error:', error);
+    const message = error instanceof Error ? error.message : "Erro interno do servidor";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

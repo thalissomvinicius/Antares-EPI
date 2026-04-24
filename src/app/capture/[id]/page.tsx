@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Camera, CheckCircle2, Loader2, AlertTriangle } from "lucide-react"
-import Image from "next/image"
 import { FaceCamera } from "@/components/ui/FaceCamera"
 
 export default function RemoteCapturePage() {
@@ -12,7 +11,7 @@ export default function RemoteCapturePage() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [employee, setEmployee] = useState<any>(null)
+  const [employee, setEmployee] = useState<{id: string, full_name: string, cpf: string, photo_url: string | null} | null>(null)
   
   const [isCapturing, setIsCapturing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -27,8 +26,12 @@ export default function RemoteCapturePage() {
         }
         const data = await res.json()
         setEmployee(data)
-      } catch (err: any) {
-        setError(err.message)
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message)
+        } else {
+          setError("Erro desconhecido.")
+        }
       } finally {
         setLoading(false)
       }
@@ -59,8 +62,12 @@ export default function RemoteCapturePage() {
       }
 
       setIsSuccess(true)
-    } catch (err: any) {
-      alert("Falha: " + err.message)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert("Falha: " + err.message)
+      } else {
+        alert("Falha ao salvar biometria.")
+      }
     } finally {
       setIsSaving(false)
     }
