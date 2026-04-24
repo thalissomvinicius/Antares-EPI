@@ -101,33 +101,26 @@ export default function EmployeesPage() {
       }
 
       if (formData.id) {
-        const updates: any = {
+        const updates: Partial<Employee> = {
           full_name: formData.name,
           job_title: formData.role || "Geral",
           department: formData.department || `Sede ${COMPANY_CONFIG.shortName}`,
           cpf: formData.cpf || "000.000.000-00",
           workplace_id: formData.workplace_id || null,
+          // Sempre inclui photo_url: null remove, string mantém
+          photo_url: formData.photo_url === null ? null : (formData.photo_url?.startsWith('http') ? formData.photo_url : undefined),
           face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
         }
 
-        // Se a foto for nula, explicitamente removemos do banco
-        if (formData.photo_url === null) {
-          updates.photo_url = null
-        } else if (formData.photo_url?.startsWith('http')) {
-          // Se for uma URL externa (não base64), mantemos ela
-          updates.photo_url = formData.photo_url
-        }
-
-        await api.updateEmployee(formData.id, updates, photoFile)
+        // Usa o Employee ATUALIZADO retornado pelo Supabase para sincronizar estado
+        const updatedEmployee = await api.updateEmployee(formData.id, updates, photoFile)
         
-        // Atualiza o estado local imediatamente para refletir a mudança
-        setEmployees(prev => prev.map(e => e.id === formData.id ? { 
-          ...e, 
-          ...updates, 
-          photo_url: updates.photo_url !== undefined ? updates.photo_url : e.photo_url 
-        } : e))
+        // Atualiza somente o colaborador editado na lista — sem fazer nova consulta
+        setEmployees(prev => prev.map(e => e.id === updatedEmployee.id ? updatedEmployee : e))
 
         alert("Cadastro atualizado com sucesso!")
+        setFormData({ id: undefined, name: "", role: "", department: "", cpf: "", workplace_id: "", photo_url: null, face_descriptor: null })
+        setIsModalOpen(false)
       } else {
         await api.addEmployee({
           full_name: formData.name,
@@ -141,19 +134,19 @@ export default function EmployeesPage() {
           face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
         }, photoFile)
         alert("Colaborador cadastrado com sucesso!")
+        
+        // Novo cadastro: recarrega a lista completa para incluir o novo
+        setLoading(true)
+        await loadData()
+        setFormData({ id: undefined, name: "", role: "", department: "", cpf: "", workplace_id: "", photo_url: null, face_descriptor: null })
+        setIsModalOpen(false)
       }
-      
-      setLoading(true)
-      // Pequeno delay para garantir propagação no Supabase antes de recarregar
-      await new Promise(r => setTimeout(r, 500))
-      await loadData() // Recarrega a lista
-      setFormData({ id: undefined, name: "", role: "", department: "", cpf: "", workplace_id: "", photo_url: null, face_descriptor: null })
-      setIsModalOpen(false)
     } catch (error) {
       console.error("Erro ao salvar colaborador:", error)
       alert("Erro ao salvar no banco de dados. Verifique a conexão.")
     } finally {
       setIsSaving(false)
+      setLoading(false)
     }
   }
 
