@@ -97,7 +97,7 @@ export default function ReportsPage() {
       }
       
       filteredDeliveries = rawDeliveries.filter(d => new Date(d.delivery_date) >= cutoff)
-      filteredTrainings = rawTrainings.filter(t => new Date(t.date) >= cutoff)
+      filteredTrainings = rawTrainings.filter(t => new Date(t.completion_date) >= cutoff)
     }
 
     setAllDeliveries(filteredDeliveries)
