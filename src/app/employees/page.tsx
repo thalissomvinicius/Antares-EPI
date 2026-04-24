@@ -107,8 +107,10 @@ export default function EmployeesPage() {
           department: formData.department || `Sede ${COMPANY_CONFIG.shortName}`,
           cpf: formData.cpf || "000.000.000-00",
           workplace_id: formData.workplace_id || null,
+          photo_url: formData.photo_url?.startsWith('http') ? formData.photo_url : (formData.photo_url === null ? null : undefined),
           face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
         }, photoFile)
+        alert("Cadastro atualizado com sucesso!")
       } else {
         await api.addEmployee({
           full_name: formData.name,
@@ -121,6 +123,7 @@ export default function EmployeesPage() {
           photo_url: null,
           face_descriptor: formData.face_descriptor ? Array.from(formData.face_descriptor) : null
         }, photoFile)
+        alert("Colaborador cadastrado com sucesso!")
       }
       
       setLoading(true)
