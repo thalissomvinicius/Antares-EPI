@@ -96,6 +96,7 @@ export const api = {
   async updateEmployee(id: string, updates: Partial<Employee>, photoFile?: File) {
     const finalUpdates = { ...updates };
 
+    // Upload da foto se houver arquivo novo
     if (photoFile) {
       const fileName = `emp_${Date.now()}_${id}.png`;
       const { error: storageError } = await supabase.storage
@@ -111,35 +112,33 @@ export const api = {
       finalUpdates.photo_url = publicUrl;
     }
 
-    console.log('[updateEmployee] ID:', id);
-    console.log('[updateEmployee] finalUpdates:', JSON.stringify(finalUpdates, null, 2));
+    // Usa rota server-side para contornar RLS
+    const response = await fetch('/api/employees/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, updates: finalUpdates })
+    });
 
-    const { data, error } = await supabase
-      .from('employees')
-      .update(finalUpdates)
-      .eq('id', id)
-      .select();
-    
-    console.log('[updateEmployee] Supabase response data:', JSON.stringify(data, null, 2));
-    console.log('[updateEmployee] Supabase response error:', error);
+    const result = await response.json();
+    console.log('[updateEmployee] Server response:', result);
 
-    if (error) throw error;
-    return data?.[0] as Employee;
+    if (!response.ok) throw new Error(result.error || 'Erro ao atualizar colaborador');
+    return result.employee as Employee;
   },
 
   async removeEmployeePhoto(id: string) {
-    console.log('[removeEmployeePhoto] Removing photo for employee:', id);
-    const { data, error } = await supabase
-      .from('employees')
-      .update({ photo_url: null, face_descriptor: null })
-      .eq('id', id)
-      .select('id, photo_url, face_descriptor');
-    
-    console.log('[removeEmployeePhoto] Result:', JSON.stringify(data, null, 2));
-    console.log('[removeEmployeePhoto] Error:', error);
-    
-    if (error) throw error;
-    return data?.[0] as Employee;
+    console.log('[removeEmployeePhoto] Chamando API server-side para remover foto');
+    const response = await fetch('/api/employees/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, removePhoto: true })
+    });
+
+    const result = await response.json();
+    console.log('[removeEmployeePhoto] Server response:', result);
+
+    if (!response.ok) throw new Error(result.error || 'Erro ao remover foto');
+    return result.employee as Employee;
   },
 
   async terminateEmployee(employeeId: string) {
