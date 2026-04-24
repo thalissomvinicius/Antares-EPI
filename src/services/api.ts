@@ -23,6 +23,43 @@ export const api = {
     return data.session;
   },
 
+  // --- Gestão de Usuários (Apenas Admin) ---
+  async getUsers() {
+    const res = await fetch('/api/users');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    return data.users as (Profile & { email: string, created_at: string, last_sign_in_at: string })[];
+  },
+
+  async createUser(payload: { email: string, password?: string, full_name: string, role: string }) {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    return data;
+  },
+
+  async updateUser(payload: { id: string, password?: string, full_name?: string, role?: string }) {
+    const res = await fetch('/api/users', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    return data;
+  },
+
+  async deleteUser(id: string) {
+    const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    return data;
+  },
+
   // --- Canteiros (Workplaces) ---
   async getWorkplaces() {
     const { data, error } = await supabase
