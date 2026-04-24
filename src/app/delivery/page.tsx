@@ -181,19 +181,36 @@ export default function DeliveryPage() {
     saveDelivery(imageBase64)
   }
 
-  const generateRemoteLink = () => {
+  const generateRemoteLink = async () => {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-      const data = {
+      const deliveryDataPayload = {
           e: selectedEmployeeId,
           p: selectedPpeId,
           w: selectedWorkplaceId,
           q: quantity,
           r: reason
       }
-      const encoded = btoa(JSON.stringify(data))
-      const url = `${baseUrl}/delivery/remote?s=${encoded}`
-      navigator.clipboard.writeText(url)
-      alert("Link de assinatura remota copiado para o clipboard! Envie para o colaborador.")
+
+      try {
+        const res = await fetch('/api/remote-links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            employee_id: selectedEmployeeId, 
+            type: 'delivery',
+            data: deliveryDataPayload 
+          })
+        })
+        
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Erro ao gerar link')
+
+        const url = `${baseUrl}/delivery/remote?t=${data.link.token}`
+        navigator.clipboard.writeText(url)
+        alert("Link de assinatura remota copiado! Válido por 24h e uso único.\n\n" + url)
+      } catch (err) {
+        alert("Erro ao gerar link de assinatura remota: " + (err instanceof Error ? err.message : "Desconhecido"))
+      }
   }
 
   if (loadingOptions) {

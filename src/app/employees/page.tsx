@@ -466,10 +466,21 @@ export default function EmployeesPage() {
                 {formData.id ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      const link = `${window.location.origin}/capture/${formData.id}`;
-                      navigator.clipboard.writeText(link);
-                      alert("Link copiado: " + link);
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/remote-links', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ employee_id: formData.id, type: 'capture' })
+                        })
+                        const data = await res.json()
+                        if (!res.ok) throw new Error(data.error)
+                        const link = `${window.location.origin}/capture/${formData.id}?t=${data.link.token}`;
+                        navigator.clipboard.writeText(link);
+                        alert("Link copiado! Válido por 24h e uso único.\n\n" + link);
+                      } catch (err) {
+                        alert("Erro ao gerar link: " + (err instanceof Error ? err.message : "Erro desconhecido"))
+                      }
                     }}
                     className="mt-3 text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-700 flex items-center gap-1 transition-colors"
                   >

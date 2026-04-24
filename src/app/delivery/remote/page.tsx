@@ -47,18 +47,14 @@ function RemoteDeliveryContent() {
   // ── Metadata ──
   const [ipAddress, setIpAddress] = useState("")
   const [location, setLocation] = useState("")
+  const [linkToken, setLinkToken] = useState<string>("")
 
   // ── Load delivery data on mount ──
   useEffect(() => {
-    const s = searchParams.get('s')
+    const s = searchParams.get('s') // Legacy support
+    const t = searchParams.get('t')
     
     const init = async () => {
-      if (!s) {
-        setErrorMsg("Link inválido ou expirado.")
-        setPhase('error')
-        return
-      }
-
       // Capture IP & location
       try {
         const ipRes = await fetch('https://api.ipify.org?format=json')
@@ -72,18 +68,43 @@ function RemoteDeliveryContent() {
       } catch { /* ignore */ }
 
       try {
-        const decoded: DeliveryData = JSON.parse(atob(s))
+        let decoded: DeliveryData | null = null;
+        let empFromToken = null;
+
+        if (t) {
+          // Token-based approach
+          const res = await fetch(`/api/remote-links?token=${t}`)
+          const data = await res.json()
+          
+          if (!res.ok) {
+            setErrorMsg(data.error || "Link inválido.")
+            setPhase(data.status === 'completed' ? 'done' : 'error')
+            return
+          }
+          
+          decoded = data.link.data as DeliveryData;
+          empFromToken = data.link.employee;
+          setLinkToken(data.link.token);
+        } else if (s) {
+          // Legacy approach
+          decoded = JSON.parse(atob(s))
+        } else {
+          setErrorMsg("Link inválido ou expirado.")
+          setPhase('error')
+          return
+        }
+
         setDeliveryData(decoded)
         
         const [employees, ppes, workplaces] = await Promise.all([
-          api.getEmployees(),
+          !empFromToken ? api.getEmployees() : Promise.resolve([]),
           api.getPpes(),
           api.getWorkplaces()
         ])
         
-        const emp = employees.find(e => e.id === decoded.e)
-        const p = ppes.find(p => p.id === decoded.p)
-        const w = workplaces.find(w => w.id === decoded.w)
+        const emp = empFromToken || employees.find(e => e.id === decoded!.e)
+        const p = ppes.find(p => p.id === decoded!.p)
+        const w = workplaces.find(w => w.id === decoded!.w)
 
         if (!emp || !p) {
           setErrorMsg("Dados da entrega não encontrados no sistema.")
@@ -94,16 +115,13 @@ function RemoteDeliveryContent() {
           setWorkplace(w || null)
           setPhase('verify') // Go to identity verification
         }
-      } catch {
+      } catch (err) {
         setErrorMsg("Erro ao processar o link de assinatura.")
         setPhase('error')
       }
     }
-
     init()
   }, [searchParams])
-
-  // Local formatter removed in favor of central utility
 
   const handleCpfChange = (value: string) => {
     setInputCpf(formatCpf(value))
@@ -114,8 +132,8 @@ function RemoteDeliveryContent() {
   const handleVerify = () => {
     if (!employee) return
     
-    if (!inputName.trim() || !inputCpf.trim()) {
-      setVerifyError("Preencha todos os campos.")
+    if (!inputCpf.trim()) {
+      setVerifyError("Informe seu CPF.")
       return
     }
 
@@ -168,6 +186,15 @@ function RemoteDeliveryContent() {
       const responseData = await apiRes.json()
       if (!apiRes.ok) throw new Error(responseData.error || "Erro ao salvar na nuvem")
 
+      // Mark link as completed if it exists
+      if (linkToken) {
+        await fetch('/api/remote-links', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: linkToken })
+        })
+      }
+
       const pdfBlob = await generateDeliveryPDF({
         employeeName: employee.full_name,
         employeeCpf: employee.cpf,
@@ -183,15 +210,16 @@ function RemoteDeliveryContent() {
         location,
         validationHash
       })
-      setLastPdfUrl(URL.createObjectURL(pdfBlob))
+      const pdfUrl = URL.createObjectURL(pdfBlob)
+      setLastPdfUrl(pdfUrl)
       setPhase('done')
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert("Erro ao salvar assinatura. Tente novamente.")
+      alert("Erro ao salvar assinatura: " + err.message)
     } finally {
       setIsSaving(false)
     }
-  }, [employee, ppe, workplace, deliveryData, authMethod, ipAddress, location])
+  }, [employee, ppe, workplace, deliveryData, authMethod, ipAddress, location, linkToken])
 
   // ───────────────────────────────────────
   // RENDER: Loading
@@ -261,22 +289,14 @@ function RemoteDeliveryContent() {
           <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3">
             <Lock className="w-4 h-4 text-blue-500 flex-shrink-0" />
             <p className="text-[10px] sm:text-[11px] text-blue-700 leading-tight">
-              Informe seu <strong>Nome Completo</strong> e <strong>CPF</strong> para liberar a assinatura.
+              Informe seu <strong>CPF</strong> para confirmar sua identidade e liberar a assinatura.
             </p>
           </div>
 
-          {/* Name input */}
-          <div className="space-y-1.5">
-            <label htmlFor="remote-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</label>
-            <input 
-              id="remote-name"
-              type="text"
-              placeholder="Digite seu nome completo"
-              value={inputName}
-              onChange={(e) => { setInputName(e.target.value); setVerifyError("") }}
-              className="w-full bg-slate-50 border-2 border-slate-100 text-slate-900 rounded-xl p-3 sm:p-4 outline-none focus:border-[#8B1A1A] transition-all font-bold text-sm"
-              autoComplete="name"
-            />
+          {/* Employee name from DB */}
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Colaborador</p>
+            <p className="font-black text-slate-800 text-sm uppercase">{employee?.full_name}</p>
           </div>
 
           {/* CPF input */}
@@ -292,6 +312,7 @@ function RemoteDeliveryContent() {
               className="w-full bg-slate-50 border-2 border-slate-100 text-slate-900 rounded-xl p-3 sm:p-4 outline-none focus:border-[#8B1A1A] transition-all font-bold text-sm tracking-wider"
               maxLength={14}
               autoComplete="off"
+              autoFocus
             />
           </div>
 
@@ -306,7 +327,7 @@ function RemoteDeliveryContent() {
           {/* Submit */}
           <button 
             onClick={handleVerify}
-            disabled={!inputName.trim() || inputCpf.replace(/\D/g, '').length < 11}
+            disabled={inputCpf.replace(/\D/g, '').length < 11}
             className="w-full bg-[#8B1A1A] hover:bg-[#681313] active:bg-[#501010] disabled:bg-slate-300 text-white py-4 sm:py-5 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[11px] sm:text-xs transition-all shadow-lg flex items-center justify-center gap-2"
           >
             <UserCheck className="w-4 h-4" />
