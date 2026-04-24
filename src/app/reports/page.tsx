@@ -148,11 +148,14 @@ export default function ReportsPage() {
         .slice(0, 5)
     setPpeUsageData(ppeStats)
 
-    const labelMap = {
+    const labelMap: Record<DateFilter, string> = {
       'all': 'Todo o Período',
       'month': 'Neste Mês',
       'last30': 'Últimos 30 Dias',
-      'last90': 'Últimos 90 Dias'
+      'last60': 'Últimos 60 Dias',
+      'last90': 'Últimos 90 Dias',
+      'custom': 'Período Específico',
+      'specific_month': 'Mês Selecionado'
     }
 
     setStats([
