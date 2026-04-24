@@ -11,7 +11,7 @@ import { exportDeliveriesToExcel } from "@/utils/excelExporter"
 import { generateGeneralReportPDF } from "@/utils/pdfGenerator"
 import { DeliveryWithRelations, PPE, Training, Workplace } from "@/types/database"
 
-type DateFilter = 'all' | 'month' | 'last30' | 'last90'
+type DateFilter = 'all' | 'month' | 'last30' | 'last60' | 'last90' | 'custom' | 'specific_month'
 
 export default function ReportsPage() {
   const { user, loading: authLoading } = useAuth()
@@ -26,6 +26,9 @@ export default function ReportsPage() {
 
   // Filter State
   const [dateFilter, setDateFilter] = useState<DateFilter>('month')
+  const [customStartDate, setCustomStartDate] = useState<string>('')
+  const [customEndDate, setCustomEndDate] = useState<string>('')
+  const [specificMonth, setSpecificMonth] = useState<string>('')
   
   // Computed Data State
   const [allDeliveries, setAllDeliveries] = useState<DeliveryWithRelations[]>([])
@@ -85,18 +88,28 @@ export default function ReportsPage() {
     const now = new Date()
 
     if (dateFilter !== 'all') {
-      const cutoff = new Date()
-      if (dateFilter === 'month') {
-        cutoff.setDate(1)
-        cutoff.setHours(0,0,0,0)
-      } else if (dateFilter === 'last30') {
-        cutoff.setDate(cutoff.getDate() - 30)
-      } else if (dateFilter === 'last90') {
-        cutoff.setDate(cutoff.getDate() - 90)
+      if (dateFilter === 'custom' && customStartDate && customEndDate) {
+        filteredDeliveries = rawDeliveries.filter(d => d.delivery_date >= customStartDate && d.delivery_date <= customEndDate + 'T23:59:59')
+        filteredTrainings = rawTrainings.filter(t => t.completion_date >= customStartDate && t.completion_date <= customEndDate + 'T23:59:59')
+      } else if (dateFilter === 'specific_month' && specificMonth) {
+        filteredDeliveries = rawDeliveries.filter(d => d.delivery_date.startsWith(specificMonth))
+        filteredTrainings = rawTrainings.filter(t => t.completion_date.startsWith(specificMonth))
+      } else if (dateFilter !== 'custom' && dateFilter !== 'specific_month') {
+        const cutoff = new Date()
+        if (dateFilter === 'month') {
+          cutoff.setDate(1)
+          cutoff.setHours(0,0,0,0)
+        } else if (dateFilter === 'last30') {
+          cutoff.setDate(cutoff.getDate() - 30)
+        } else if (dateFilter === 'last60') {
+          cutoff.setDate(cutoff.getDate() - 60)
+        } else if (dateFilter === 'last90') {
+          cutoff.setDate(cutoff.getDate() - 90)
+        }
+        
+        filteredDeliveries = rawDeliveries.filter(d => new Date(d.delivery_date) >= cutoff)
+        filteredTrainings = rawTrainings.filter(t => new Date(t.completion_date) >= cutoff)
       }
-      
-      filteredDeliveries = rawDeliveries.filter(d => new Date(d.delivery_date) >= cutoff)
-      filteredTrainings = rawTrainings.filter(t => new Date(t.completion_date) >= cutoff)
     }
 
     // eslint-disable-next-line
@@ -181,11 +194,18 @@ export default function ReportsPage() {
   }
 
   const handleExportPDF = () => {
-    const titleMap = { 'all': 'Todo o Histórico', 'month': 'Neste Mês', 'last30': 'Últimos 30 Dias', 'last90': 'Últimos 90 Dias' }
+    let periodTitle = 'Todo o Histórico'
+    if (dateFilter === 'month') periodTitle = 'Neste Mês'
+    if (dateFilter === 'last30') periodTitle = 'Últimos 30 Dias'
+    if (dateFilter === 'last60') periodTitle = 'Últimos 60 Dias'
+    if (dateFilter === 'last90') periodTitle = 'Últimos 90 Dias'
+    if (dateFilter === 'custom') periodTitle = `Período: ${customStartDate} a ${customEndDate}`
+    if (dateFilter === 'specific_month') periodTitle = `Mês Específico: ${specificMonth}`
+
     generateGeneralReportPDF({
       stats,
       deliveries: allDeliveries,
-      periodTitle: titleMap[dateFilter]
+      periodTitle: periodTitle
     })
   }
 
@@ -215,10 +235,42 @@ export default function ReportsPage() {
             >
               <option value="month">Neste Mês</option>
               <option value="last30">Últimos 30 Dias</option>
+              <option value="last60">Últimos 60 Dias</option>
               <option value="last90">Últimos 90 Dias</option>
+              <option value="specific_month">Mês Específico</option>
+              <option value="custom">Período Personalizado</option>
               <option value="all">Todo o Período</option>
             </select>
           </div>
+          
+          {dateFilter === 'specific_month' && (
+            <input 
+              type="month"
+              value={specificMonth}
+              onChange={e => setSpecificMonth(e.target.value)}
+              className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold text-xs outline-none focus:border-[#8B1A1A]"
+            />
+          )}
+
+          {dateFilter === 'custom' && (
+            <div className="flex gap-2">
+              <input 
+                type="date"
+                title="Data Início"
+                value={customStartDate}
+                onChange={e => setCustomStartDate(e.target.value)}
+                className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold text-xs outline-none focus:border-[#8B1A1A]"
+              />
+              <span className="flex items-center text-slate-400 font-bold">a</span>
+              <input 
+                type="date"
+                title="Data Fim"
+                value={customEndDate}
+                onChange={e => setCustomEndDate(e.target.value)}
+                className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold text-xs outline-none focus:border-[#8B1A1A]"
+              />
+            </div>
+          )}
           <button 
             onClick={handleExportPDF}
             className="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm"
