@@ -260,7 +260,7 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel, cancelLabel 
         if (d) {
           if (targetDescriptor) {
             const distance = faceapi.euclideanDistance(d.descriptor, targetDescriptor)
-            if (distance < 0.6) {
+            if (distance < 0.55) {
               captureSuccess(d.descriptor)
             } else {
               countdownActiveRef.current = false

@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(userData as User)
         } else {
           setUser(null)
-          if (pathname !== '/login' && !pathname?.startsWith('/delivery/remote')) {
+          if (pathname !== '/login' && !pathname?.startsWith('/delivery/remote') && !pathname?.startsWith('/capture')) {
             router.push('/login')
           }
         }

@@ -136,7 +136,7 @@ export default function DeliveryPage() {
         employee_id: selectedEmployeeId,
         ppe_id: selectedPpeId,
         workplace_id: selectedWorkplaceId || null,
-        reason: 'Primeira Entrega',
+        reason: reason as any,
         quantity: quantity,
         ip_address: ipAddress || "Desconhecido",
         signature_url: null
@@ -361,9 +361,10 @@ export default function DeliveryPage() {
                     id="quantity-input"
                     type="number"
                     min="1"
+                    max="100"
                     className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl px-5 py-4 outline-none focus:border-[#8B1A1A] focus:bg-white transition-all font-bold text-sm"
                     value={quantity}
-                    onChange={(e) => setQuantity(Number(e.target.value))}
+                    onChange={(e) => setQuantity(Math.min(100, Math.max(1, Number(e.target.value) || 1)))}
                   />
                 </div>
 

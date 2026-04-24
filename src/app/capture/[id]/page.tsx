@@ -140,7 +140,9 @@ export default function RemoteCapturePage() {
         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Colaborador</p>
           <p className="font-black text-slate-800 uppercase text-lg">{employee.full_name}</p>
-          <p className="text-xs text-slate-500">{employee.cpf}</p>
+          <p className="text-xs text-slate-500">
+            {employee.cpf.replace(/(\d{3})\.\d{3}\.\d{3}-(\d{2})/, "$1.***.***-$2")}
+          </p>
         </div>
 
         {employee.photo_url && (
