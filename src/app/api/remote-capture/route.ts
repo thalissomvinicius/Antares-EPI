@@ -47,8 +47,7 @@ export async function POST(request: Request) {
       .from('employees')
       .update({
         photo_url,
-        face_descriptor,
-        updated_at: new Date().toISOString()
+        face_descriptor
       })
       .eq('id', id)
       .select()

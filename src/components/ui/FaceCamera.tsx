@@ -379,9 +379,9 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel, cancelLabel 
           />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none face-camera-mirror" />
           
-          {/* Circular guide */}
+          {/* Circular guide — fixed size to prevent distortion on mobile */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="w-[55%] sm:w-[50%] aspect-square rounded-full border-2 border-dashed border-white/10" />
+            <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-full border-2 border-dashed border-white/20" />
           </div>
 
           {/* Real-time warning (hat, glasses, too far) */}
