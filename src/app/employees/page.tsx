@@ -779,10 +779,10 @@ export default function EmployeesPage() {
       )}
       {isTstModalOpen && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col border border-slate-200 animate-in zoom-in-95 duration-200">
             
             {/* Header */}
-            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
               <div>
                 <h2 className="font-black text-slate-800 uppercase tracking-tighter text-lg">Assinar Prontuário</h2>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
@@ -796,7 +796,7 @@ export default function EmployeesPage() {
 
             {/* Step 1 — Select TST from employee list */}
             {tstStep === 1 && (
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                   <p className="text-[10px] text-amber-800 font-bold uppercase tracking-widest">
                     📋 Selecione o Técnico de Segurança do Trabalho cadastrado no sistema.
@@ -857,7 +857,7 @@ export default function EmployeesPage() {
 
             {/* Step 2 — Capture Signature */}
             {tstStep === 2 && (
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
                 {/* Notice for Missing Photo */}
                 {!tstSelectedEmployee?.photo_url && !tstSignatureBase64 && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-3 items-start">
@@ -962,7 +962,7 @@ export default function EmployeesPage() {
                 )}
 
                 {/* Generate PDF button */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-2 pb-2 shrink-0">
                   <button
                     onClick={() => setTstStep(1)}
                     className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border border-slate-200 rounded-xl hover:bg-slate-50"
