@@ -1,17 +1,79 @@
 import { supabase } from "@/lib/supabase";
 import { Employee, PPE, Delivery, Training, DeliveryWithRelations, TrainingWithRelations, Workplace, StockMovement, Profile } from "@/types/database";
+import { Session } from "@supabase/supabase-js";
 
 type AddTrainingResult = {
   training: Training;
   warning?: string;
 }
 
+const SESSION_REFRESH_BUFFER_SECONDS = 60;
+
+function isJwtExpiredError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const maybeError = error as { code?: string; status?: number; message?: string };
+  const message = maybeError.message?.toLowerCase() || "";
+
+  return (
+    maybeError.code === "PGRST301" ||
+    maybeError.code === "PGRST303" ||
+    maybeError.status === 401 ||
+    message.includes("jwt expired") ||
+    message.includes("invalid jwt") ||
+    message.includes("unauthorized")
+  );
+}
+
+async function ensureActiveSession(): Promise<Session | null> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+
+  const session = data.session;
+  if (!session) return null;
+
+  const expiresAt = session.expires_at ?? 0;
+  const nowInSeconds = Math.floor(Date.now() / 1000);
+
+  if (expiresAt !== 0 && expiresAt <= nowInSeconds + SESSION_REFRESH_BUFFER_SECONDS) {
+    const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
+
+    if (refreshError) {
+      await supabase.auth.signOut();
+      throw refreshError;
+    }
+
+    return refreshedData.session;
+  }
+
+  return session;
+}
+
+async function withSessionRetry<T>(operation: () => PromiseLike<T>): Promise<T> {
+  await ensureActiveSession();
+
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isJwtExpiredError(error)) {
+      throw error;
+    }
+
+    const { data, error: refreshError } = await supabase.auth.refreshSession();
+
+    if (refreshError || !data.session) {
+      await supabase.auth.signOut();
+      throw refreshError || error;
+    }
+
+    return await operation();
+  }
+}
+
 export const api = {
   async getAuthHeaders(): Promise<Record<string, string>> {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-
-    const token = data.session?.access_token;
+    const session = await ensureActiveSession();
+    const token = session?.access_token;
     return token ? { Authorization: `Bearer ${token}` } : {};
   },
 
@@ -31,9 +93,20 @@ export const api = {
   },
 
   async getSession() {
-    const { data, error } = await supabase.auth.getSession();
+    return await ensureActiveSession();
+  },
+
+  async getProfileRole(userId: string) {
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle()
+    );
+
     if (error) throw error;
-    return data.session;
+    return data?.role as Profile['role'] | undefined;
   },
 
   // --- Gestão de Usuários (Apenas Admin) ---
@@ -96,31 +169,37 @@ export const api = {
 
   // --- Canteiros (Workplaces) ---
   async getWorkplaces() {
-    const { data, error } = await supabase
-      .from('workplaces')
-      .select('*')
-      .order('name', { ascending: true });
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('workplaces')
+        .select('*')
+        .order('name', { ascending: true })
+    );
     
     if (error) throw error;
     return data as Workplace[];
   },
 
   async addWorkplace(workplace: Omit<Workplace, 'id' | 'created_at'>) {
-    const { data, error } = await supabase
-      .from('workplaces')
-      .insert([workplace])
-      .select();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('workplaces')
+        .insert([workplace])
+        .select()
+    );
     
     if (error) throw error;
     return data[0] as Workplace;
   },
 
   async updateWorkplace(id: string, updates: Partial<Workplace>) {
-    const { data, error } = await supabase
-      .from('workplaces')
-      .update(updates)
-      .eq('id', id)
-      .select();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('workplaces')
+        .update(updates)
+        .eq('id', id)
+        .select()
+    );
     
     if (error) throw error;
     return data[0] as Workplace;
@@ -128,10 +207,12 @@ export const api = {
 
   // --- Colaboradores ---
   async getEmployees() {
-    const { data, error } = await supabase
-      .from('employees')
-      .select('*')
-      .order('full_name', { ascending: true });
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('employees')
+        .select('*')
+        .order('full_name', { ascending: true })
+    );
     
     if (error) throw error;
     return data as Employee[];
@@ -139,6 +220,7 @@ export const api = {
 
   async addEmployee(employee: Omit<Employee, 'id' | 'created_at'>, photoFile?: File) {
     let photoUrl = employee.photo_url;
+    await ensureActiveSession();
 
     if (photoFile) {
       const fileName = `emp_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
@@ -155,10 +237,12 @@ export const api = {
       photoUrl = publicUrl;
     }
 
-    const { data, error } = await supabase
-      .from('employees')
-      .insert([{ ...employee, photo_url: photoUrl }])
-      .select();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('employees')
+        .insert([{ ...employee, photo_url: photoUrl }])
+        .select()
+    );
     
     if (error) throw error;
     return data[0] as Employee;
@@ -166,6 +250,7 @@ export const api = {
 
   async updateEmployee(id: string, updates: Partial<Employee>, photoFile?: File) {
     const finalUpdates = { ...updates };
+    await ensureActiveSession();
 
     // Upload da foto se houver arquivo novo
     if (photoFile) {
@@ -213,41 +298,49 @@ export const api = {
   },
 
   async terminateEmployee(employeeId: string) {
-    const { error } = await supabase
-      .from('employees')
-      .update({ active: false }) // termination_date removed as it's missing from DB
-      .eq('id', employeeId);
+    const { error } = await withSessionRetry(() =>
+      supabase
+        .from('employees')
+        .update({ active: false }) // termination_date removed as it's missing from DB
+        .eq('id', employeeId)
+    );
     
     if (error) throw error;
   },
 
   // --- EPIs ---
   async getPpes() {
-    const { data, error } = await supabase
-      .from('ppes')
-      .select('*')
-      .order('name', { ascending: true });
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('ppes')
+        .select('*')
+        .order('name', { ascending: true })
+    );
     
     if (error) throw error;
     return data as PPE[];
   },
 
   async addPpe(ppe: Omit<PPE, 'id' | 'created_at'>) {
-    const { data, error } = await supabase
-      .from('ppes')
-      .insert([ppe])
-      .select();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('ppes')
+        .insert([ppe])
+        .select()
+    );
     
     if (error) throw error;
     return data[0] as PPE;
   },
 
   async updatePpe(id: string, updates: Partial<PPE>) {
-    const { data, error } = await supabase
-      .from('ppes')
-      .update(updates)
-      .eq('id', id)
-      .select();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('ppes')
+        .update(updates)
+        .eq('id', id)
+        .select()
+    );
     
     if (error) throw error;
     return data[0] as PPE;
@@ -255,23 +348,27 @@ export const api = {
 
   // --- Estoque (Stock Movements) ---
   async getStockMovements() {
-    const { data, error } = await supabase
-      .from('stock_movements')
-      .select(`
-        *,
-        ppe:ppes(name)
-      `)
-      .order('created_at', { ascending: false });
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('stock_movements')
+        .select(`
+          *,
+          ppe:ppes(name)
+        `)
+        .order('created_at', { ascending: false })
+    );
     
     if (error) throw error;
     return data as StockMovement[];
   },
 
   async addStockMovement(movement: Omit<StockMovement, 'id' | 'created_at' | 'ppe'>) {
-    const { data, error } = await supabase
-      .from('stock_movements')
-      .insert([movement])
-      .select();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('stock_movements')
+        .insert([movement])
+        .select()
+    );
     
     if (error) throw error;
     return data[0] as StockMovement;
@@ -279,31 +376,35 @@ export const api = {
 
   // --- Entregas ---
   async getDeliveries() {
-    const { data, error } = await supabase
-      .from('deliveries')
-      .select(`
-        *,
-        employee:employees(full_name, cpf, job_title),
-        ppe:ppes(name, ca_number, cost, lifespan_days),
-        workplace:workplaces(name)
-      `)
-      .order('delivery_date', { ascending: false });
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('deliveries')
+        .select(`
+          *,
+          employee:employees(full_name, cpf, job_title),
+          ppe:ppes(name, ca_number, cost, lifespan_days),
+          workplace:workplaces(name)
+        `)
+        .order('delivery_date', { ascending: false })
+    );
     
     if (error) throw error;
     return data as DeliveryWithRelations[];
   },
 
   async getEmployeeHistory(employeeId: string) {
-    const { data, error } = await supabase
-      .from('deliveries')
-      .select(`
-        *,
-        employee:employees(full_name, cpf, job_title, active, admission_date),
-        ppe:ppes(name, ca_number, cost, lifespan_days),
-        workplace:workplaces(name)
-      `)
-      .eq('employee_id', employeeId)
-      .order('delivery_date', { ascending: false });
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('deliveries')
+        .select(`
+          *,
+          employee:employees(full_name, cpf, job_title, active, admission_date),
+          ppe:ppes(name, ca_number, cost, lifespan_days),
+          workplace:workplaces(name)
+        `)
+        .eq('employee_id', employeeId)
+        .order('delivery_date', { ascending: false })
+    );
     
     if (error) throw error;
     return data as DeliveryWithRelations[];
@@ -311,6 +412,7 @@ export const api = {
 
   async saveDelivery(delivery: Omit<Delivery, 'id' | 'created_at'>, signatureFile?: File) {
     let signatureUrl = null;
+    await ensureActiveSession();
 
     // 1. Se houver imagem da assinatura, faz o upload para o Storage
     if (signatureFile) {
@@ -331,56 +433,66 @@ export const api = {
     }
 
     // 3. Salva o registro na tabela de entregas
-    const { data, error } = await supabase
-      .from('deliveries')
-      .insert([{
-        ...delivery,
-        signature_url: signatureUrl,
-        delivery_date: delivery.delivery_date || new Date().toISOString()
-      }])
-      .select();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('deliveries')
+        .insert([{
+          ...delivery,
+          signature_url: signatureUrl,
+          delivery_date: delivery.delivery_date || new Date().toISOString()
+        }])
+        .select()
+    );
     
     if (error) throw error;
     return data[0];
   },
 
   async returnDelivery(deliveryId: string, motive: string) {
-    const { error } = await supabase
-      .from('deliveries')
-      .update({ returned_at: new Date().toISOString(), return_motive: motive })
-      .eq('id', deliveryId);
+    const { error } = await withSessionRetry(() =>
+      supabase
+        .from('deliveries')
+        .update({ returned_at: new Date().toISOString(), return_motive: motive })
+        .eq('id', deliveryId)
+    );
     
     if (error) throw error;
   },
 
   async returnMultipleDeliveries(deliveryIds: string[], motive: string) {
-    const { error } = await supabase
-      .from('deliveries')
-      .update({ returned_at: new Date().toISOString(), return_motive: motive })
-      .in('id', deliveryIds);
+    const { error } = await withSessionRetry(() =>
+      supabase
+        .from('deliveries')
+        .update({ returned_at: new Date().toISOString(), return_motive: motive })
+        .in('id', deliveryIds)
+    );
     
     if (error) throw error;
   },
 
   // --- Treinamentos ---
   async getTrainings() {
-    const { data, error } = await supabase
-      .from('trainings')
-      .select(`
-        *,
-        employee:employees!trainings_employee_id_fkey(full_name, cpf)
-      `)
-      .order('completion_date', { ascending: false });
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('trainings')
+        .select(`
+          *,
+          employee:employees!trainings_employee_id_fkey(full_name, cpf)
+        `)
+        .order('completion_date', { ascending: false })
+    );
     
     if (error) throw error;
     return data as TrainingWithRelations[];
   },
 
   async addTraining(training: Omit<Training, 'id' | 'created_at'>): Promise<AddTrainingResult> {
-    const { data, error } = await supabase
-      .from('trainings')
-      .insert([training])
-      .select();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('trainings')
+        .insert([training])
+        .select()
+    );
 
     if (!error) {
       return { training: data[0] as Training };
@@ -407,10 +519,12 @@ export const api = {
       status: training.status,
     };
 
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('trainings')
-      .insert([fallbackTraining])
-      .select();
+    const { data: fallbackData, error: fallbackError } = await withSessionRetry(() =>
+      supabase
+        .from('trainings')
+        .insert([fallbackTraining])
+        .select()
+    );
 
     if (fallbackError) {
       throw new Error(
@@ -427,22 +541,26 @@ export const api = {
 
   // --- Perfis de Usuário (RBAC) ---
   async getProfiles() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('full_name', { ascending: true });
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('profiles')
+        .select('*')
+        .order('full_name', { ascending: true })
+    );
     
     if (error) throw error;
     return data as Profile[];
   },
 
   async updateProfileRole(userId: string, role: Profile['role']) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ role })
-      .eq('id', userId)
-      .select()
-      .maybeSingle();
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', userId)
+        .select()
+        .maybeSingle()
+    );
     
     if (error) throw error;
     return data as Profile | null;
