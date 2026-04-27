@@ -734,7 +734,6 @@ export function generateGeneralReportPDF(data: ReportPDFData): Blob {
     theme: 'grid'
   })
 
-  // @ts-expect-error - autoTable adds lastAutoTable to doc
   const finalY = (doc as any).lastAutoTable?.finalY || 200
   const emitDate = format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
   doc.setFontSize(7)
