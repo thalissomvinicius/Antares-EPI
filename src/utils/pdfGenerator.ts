@@ -922,8 +922,9 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
     doc.setFontSize(7)
     doc.setTextColor(119, 119, 119) // #777777
     doc.text(`Autenticação:`, marginX + 12.5, footerY + 28, { align: "center" })
-    doc.setFontSize(6)
-    doc.text(`${validationUrl.replace('https://', '')}`, marginX + 12.5, footerY + 31, { align: "center" })
+    doc.setFontSize(5.5)
+    doc.text(`sesmt.antaresempreendimentos.com.br`, marginX + 12.5, footerY + 31, { align: "center" })
+    doc.text(`/validar/${code}`, marginX + 12.5, footerY + 33.5, { align: "center" })
   } catch {}
 
   // Center: Signature
