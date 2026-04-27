@@ -6,6 +6,11 @@ import { COMPANY_CONFIG } from "@/config/company"
 import QRCode from "qrcode"
 import { DeliveryWithRelations } from "@/types/database"
 
+/**
+ * PDF Generator Utility for Antares EPI
+ * Version: 1.1.2 - Fixes layout and colors
+ */
+
 const [r, g, b] = COMPANY_CONFIG.primaryColorRgb
 
 // ─────────────────────────────────────────────
@@ -84,13 +89,11 @@ export interface DeliveryPDFData {
   employeeCpf: string
   employeeRole: string
   workplaceName: string
-  // Single item (backward compat)
   ppeName?: string
   ppeCaNumber?: string
   ppeCaExpiry?: string
   quantity?: number
   reason?: string
-  // Multi-item support
   items?: { ppeName: string; ppeCaNumber: string; caExpiry?: string; quantity: number; reason: string }[]
   authMethod: 'manual' | 'facial'
   signatureBase64: string
@@ -98,7 +101,7 @@ export interface DeliveryPDFData {
   ipAddress?: string
   location?: string
   validationHash?: string
-  deliveryDate?: string // Custom delivery date
+  deliveryDate?: string
 }
 
 export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> {
@@ -106,12 +109,10 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
   const pageWidth = doc.internal.pageSize.getWidth()
   const hash = data.validationHash || Math.random().toString(36).substring(2, 12).toUpperCase()
 
-  // Build items array (support both single and multi-item)
   const pdfItems = data.items && data.items.length > 0
     ? data.items
     : [{ ppeName: data.ppeName || "", ppeCaNumber: data.ppeCaNumber || "", caExpiry: data.ppeCaExpiry, quantity: data.quantity || 0, reason: data.reason || "" }]
 
-  // 1. HEADER (SaaS Premium Style)
   doc.setFillColor(r, g, b)
   doc.rect(0, 0, pageWidth, 40, "F")
   
@@ -131,7 +132,6 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
   const today = data.deliveryDate ? format(new Date(data.deliveryDate), "dd/MM/yyyy", { locale: ptBR }) : format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })
   doc.text(today, pageWidth - 14, 15, { align: "right" })
 
-  // 2. CARD: COLABORADOR (3 Columns)
   let currentY = 50
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(230, 230, 230)
@@ -165,7 +165,6 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
   doc.setFont("helvetica", "bold")
   doc.text(data.workplaceName || "Sede", pageWidth - 20, currentY + 23, { align: "right" })
 
-  // 3. CARD: DADOS DO EPI (Table — supports multiple items)
   currentY += 45
   autoTable(doc, {
     startY: currentY,
@@ -184,7 +183,6 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
     theme: 'grid'
   })
 
-  // 4. CARD: TERMO DE RESPONSABILIDADE
   // @ts-expect-error - jsPDF-autotable adds lastAutoTable to doc
   currentY = doc.lastAutoTable.finalY + 15
   doc.setFillColor(255, 255, 255)
@@ -202,27 +200,21 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
   const splitTerm = doc.splitTextToSize(termText, pageWidth - 36)
   doc.text(splitTerm, 18, currentY + 13, { align: "left" })
 
-  // 5. CARD: BIOMETRIA / ASSINATURA
-  // Smart detection: use actual image dimensions to decide rendering mode
-  // Photos are portrait/square, signatures are wide landscape drawings
   currentY += 35
   
-  let isPhoto = data.authMethod === 'facial' // Start with declared method
+  let isPhoto = data.authMethod === 'facial'
   let imgRatio = 1
   
   if (data.signatureBase64) {
     try {
       const imgProps = doc.getImageProperties(data.signatureBase64)
       imgRatio = imgProps.width / imgProps.height
-      // If image is roughly square or portrait (ratio <= 1.5), it's likely a photo
-      // Signature drawings are always very wide (ratio > 2)
       if (imgRatio <= 1.5) isPhoto = true
       if (imgRatio > 2.5) isPhoto = false
     } catch { /* keep declared method */ }
   }
 
   if (isPhoto && data.signatureBase64) {
-    // ── BIOMETRIC PHOTO (proportional, centered) ──
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
     doc.setTextColor(71, 85, 105)
@@ -235,28 +227,21 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
     doc.roundedRect(containerX - 2, currentY + 5, containerSize + 4, containerSize + 4, 3, 3, "FD")
     
     try {
-      // Calculate proportional dimensions to fit inside container WITHOUT stretching
       let drawW: number, drawH: number
-      
       if (imgRatio >= 1) {
-        // Landscape or square: fit to width, calculate height
         drawW = containerSize
         drawH = containerSize / imgRatio
       } else {
-        // Portrait: fit to height, calculate width
         drawH = containerSize
         drawW = containerSize * imgRatio
       }
-      
       const drawX = containerX + (containerSize - drawW) / 2
       const drawY = currentY + 7 + (containerSize - drawH) / 2
-      
       doc.addImage(data.signatureBase64, 'JPEG', drawX, drawY, drawW, drawH)
     } catch (e) {
       console.error("Error adding photo to PDF", e)
     }
     
-    // Employee name below photo
     doc.setFont("helvetica", "bold")
     doc.setFontSize(9)
     doc.setTextColor(30, 41, 59)
@@ -269,13 +254,11 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
     
     currentY += containerSize + 30
   } else {
-    // ── MANUAL SIGNATURE (proportional) ──
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
     doc.setTextColor(71, 85, 105)
     doc.text("ASSINATURA DO COLABORADOR", pageWidth / 2, currentY, { align: "center" })
     
-    // Signature container
     const sigBoxW = 100
     const sigBoxH = 30
     const sigBoxX = (pageWidth - sigBoxW) / 2
@@ -285,7 +268,6 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
     doc.roundedRect(sigBoxX, currentY + 4, sigBoxW, sigBoxH, 2, 2, "FD")
     
     try {
-      // Fit signature proportionally inside the box
       const imgProps = doc.getImageProperties(data.signatureBase64)
       const sigRatio = imgProps.width / imgProps.height
       let drawW = sigBoxW - 8
@@ -299,7 +281,6 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
       doc.addImage(data.signatureBase64, 'PNG', drawX, drawY, drawW, drawH)
     } catch {}
     
-    // Signature line
     doc.setDrawColor(200, 200, 200)
     doc.line(sigBoxX + 10, currentY + sigBoxH + 6, sigBoxX + sigBoxW - 10, currentY + sigBoxH + 6)
     
@@ -311,12 +292,10 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
     currentY += sigBoxH + 22
   }
 
-  // 6. CARD: AUTENTICAÇÃO (2 Columns)
   doc.setFillColor(252, 252, 252)
   doc.setDrawColor(240, 240, 240)
   doc.roundedRect(14, currentY, pageWidth - 28, 35, 3, 3, "FD")
   
-  // Left: Metadata
   const metaX = 20
   doc.setFontSize(7)
   doc.setFont("helvetica", "normal")
@@ -340,7 +319,6 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
   doc.setTextColor(71, 85, 105)
   doc.text(data.location || "Coordenadas não capturadas", metaX, currentY + 35)
 
-  // Right: QR Code
   try {
     const qrText = `${COMPANY_CONFIG.systemName} | Valid: ${hash} | Date: ${today}`
     const qrDataUrl = await QRCode.toDataURL(qrText, { width: 200, margin: 1 })
@@ -350,7 +328,6 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
     doc.text("Scan to Verify", pageWidth - 32, currentY + 33, { align: "center" })
   } catch {}
 
-  // 7. FOOTER (dynamic position — after auth card, not fixed to page bottom)
   currentY += 45
   doc.setDrawColor(230, 230, 230)
   doc.setLineWidth(0.3)
@@ -363,7 +340,6 @@ export async function generateDeliveryPDF(data: DeliveryPDFData): Promise<Blob> 
 
   return doc.output("blob")
 }
-
 
 // ─────────────────────────────────────────────
 // 2. RECIBO DE BAIXA / SUBSTITUIÇÃO
@@ -451,7 +427,6 @@ export async function generateReturnPDF(data: ReturnPDFData): Promise<Blob> {
   doc.roundedRect(14, sigY, pageWidth - 28, 50, 3, 3, "FD")
   try {
     if (data.authMethod === 'facial') {
-      // Square photo, proportional
       doc.addImage(data.signatureBase64, 'JPEG', (pageWidth - 40) / 2, sigY + 3, 40, 40)
     } else {
       doc.addImage(data.signatureBase64, 'PNG', (pageWidth - 80) / 2, sigY + 5, 80, 30)
@@ -490,8 +465,8 @@ export interface NR06PDFData {
     reason: string
     returnedAt?: string | null
     isExpired: boolean
-    signatureUrl?: string | null   // URL da assinatura/foto da entrega
-    signatureBase64?: string        // Base64 para embed direto no PDF
+    signatureUrl?: string | null
+    signatureBase64?: string
   }[]
   tstSigner?: {
     name: string
@@ -526,7 +501,6 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
     infoRow(doc, f.label, f.value, x, y)
   })
 
-  // ── Resolve all signatures to base64 before drawing ──
   const itemsWithSigs = await Promise.all(
     data.items.map(async (item) => {
       if (item.signatureBase64) return item
@@ -540,7 +514,7 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
             reader.readAsDataURL(blob)
           })
           return { ...item, signatureBase64: b64 }
-        } catch { /* fallback: no sig */ }
+        } catch { /* fallback */ }
       }
       return item
     })
@@ -558,7 +532,7 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
       item.reason,
       item.returnedAt ? "Devolvido" : item.isExpired ? "⚠ Troca Pendente" : "Em uso",
       item.returnedAt ? format(new Date(item.returnedAt), "dd/MM/yyyy") : "—",
-      "", // placeholder for signature image — drawn in didDrawCell
+      "",
     ]),
     styles: {
       fontSize: 7,
@@ -611,7 +585,7 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
           const dy = y + (maxH - drawH) / 2
           const fmt = item.signatureBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG'
           doc.addImage(item.signatureBase64, fmt, dx, dy, drawW, drawH)
-        } catch { /* skip if image fails */ }
+        } catch { /* skip */ }
       }
     },
     margin: { left: 14, right: 14 },
@@ -621,7 +595,6 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
   let finalY = doc.lastAutoTable?.finalY || 200
   finalY += 12
 
-  // TST signer block
   if (data.tstSigner) {
     const tst = data.tstSigner
     const blockWidth = 88
@@ -636,7 +609,7 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7)
     doc.setTextColor(71, 85, 105)
-    doc.text("ASSINATURA DO RESPONS\u00c1VEL T\u00c9CNICO", pageWidth / 2, blockY + 7, { align: "center" })
+    doc.text("ASSINATURA DO RESPONSÁVEL TÉCNICO", pageWidth / 2, blockY + 7, { align: "center" })
 
     try {
       const imgProps = doc.getImageProperties(tst.signatureBase64)
@@ -647,7 +620,7 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
       if (drawW > contentWidth) {
         drawW = contentWidth
       }
-      const sigX = contentX
+      const sigX = blockX + (blockWidth - drawW) / 2
       const sigY = blockY + 12
       const fmt = tst.signatureBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG'
       doc.addImage(tst.signatureBase64, fmt, sigX, sigY, drawW, drawH)
@@ -688,12 +661,12 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
 }
 
 // ─────────────────────────────────────────────
-// 3. RELATÓRIO GERAL (ANALYTICS)
+// 4. RELATÓRIO GERAL (ANALYTICS)
 // ─────────────────────────────────────────────
 
 export interface ReportPDFData {
   stats: { label: string; value: string; change: string }[]
-  deliveries: DeliveryWithRelations[] // Array of deliveries to list
+  deliveries: DeliveryWithRelations[]
   periodTitle?: string
 }
 
@@ -704,7 +677,6 @@ export function generateGeneralReportPDF(data: ReportPDFData): Blob {
   const subtitle = data.periodTitle ? `Métricas Globais e Rastreabilidade • ${data.periodTitle}` : "Métricas Globais e Rastreabilidade (NR-06)"
   addPageHeader(doc, "RELATÓRIO DE CONFORMIDADE E CUSTOS", subtitle)
 
-  // Metrics Dashboard
   let currentY = 50
   
   doc.setFontSize(10)
@@ -713,7 +685,6 @@ export function generateGeneralReportPDF(data: ReportPDFData): Blob {
   doc.text("MÉTRICAS GLOBAIS", 14, currentY)
   currentY += 8
 
-  // Draw 4 cards for metrics
   const cardWidth = (pageWidth - 28 - (3 * 5)) / 4
   
   data.stats.forEach((stat, i) => {
@@ -744,7 +715,7 @@ export function generateGeneralReportPDF(data: ReportPDFData): Blob {
   doc.text("HISTÓRICO RECENTE DE TRANSAÇÕES", 14, currentY)
   currentY += 5
 
-  const recentDeliveries = data.deliveries.slice(0, 50) // Limit to 50 for the PDF
+  const recentDeliveries = data.deliveries.slice(0, 50)
 
   autoTable(doc, {
     startY: currentY,
@@ -763,7 +734,7 @@ export function generateGeneralReportPDF(data: ReportPDFData): Blob {
     theme: 'grid'
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // @ts-expect-error - autoTable adds lastAutoTable to doc
   const finalY = (doc as any).lastAutoTable?.finalY || 200
   const emitDate = format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
   doc.setFontSize(7)
@@ -774,6 +745,10 @@ export function generateGeneralReportPDF(data: ReportPDFData): Blob {
   addPageFooter(doc)
   return doc.output("blob")
 }
+
+// ─────────────────────────────────────────────
+// 5. CERTIFICADO DE TREINAMENTO
+// ─────────────────────────────────────────────
 
 export interface TrainingCertificateData {
   employeeName: string
@@ -824,7 +799,7 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
   doc.setFont("times", "bold")
   doc.setFontSize(36)
   doc.setTextColor(30, 41, 59)
-  doc.text("CERTIFICADO DE CONCLUS\u00c3O", centerX, 62, { align: "center" })
+  doc.text("CERTIFICADO DE CONCLUSÃO", centerX, 62, { align: "center" })
 
   doc.setFont("helvetica", "italic")
   doc.setFontSize(10)
@@ -844,7 +819,7 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
   doc.setFont("helvetica", "italic")
   doc.setFontSize(10)
   doc.setTextColor(102, 102, 102)
-  doc.text("concluiu com \u00eaxito o treinamento de", centerX, 126, { align: "center" })
+  doc.text("concluiu com êxito o treinamento de", centerX, 126, { align: "center" })
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(20)
@@ -857,7 +832,7 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
   doc.setFont("helvetica", "normal")
   doc.setFontSize(12)
   doc.setTextColor(71, 85, 105)
-  doc.text(`Realizado em: ${completionText}  |  V\u00e1lido at\u00e9: ${validUntilText}`, centerX, 150, { align: "center" })
+  doc.text(`Realizado em: ${completionText}  |  Válido até: ${validUntilText}`, centerX, 150, { align: "center" })
 
   const signerBlockX = centerX - 40
   const signerBlockWidth = 80
@@ -893,9 +868,7 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
         }
 
         doc.addImage(data.signatureBase64, fmt, sigX, sigY, drawW, drawH)
-      } catch {
-        // ignore invalid signature image
-      }
+      } catch { /* skip */ }
     }
 
     doc.setDrawColor(148, 163, 184)
@@ -910,20 +883,20 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
     doc.setFont("helvetica", "normal")
     doc.setFontSize(8)
     doc.setTextColor(102, 102, 102)
-    doc.text(data.instructorRole || "Instrutor / Respons\u00e1vel T\u00e9cnico", centerX, signerRoleY, { align: "center" })
+    doc.text(data.instructorRole || "Instrutor / Responsável Técnico", centerX, signerRoleY, { align: "center" })
   }
 
   doc.setFontSize(8)
   doc.setFont("helvetica", "italic")
   doc.setTextColor(148, 163, 184)
-  const issuedAt = format(new Date(), "dd/MM/yyyy '\u00e0s' HH:mm")
+  const issuedAt = format(new Date(), "dd/MM/yyyy 'às' HH:mm")
   doc.text(`Documento emitido digitalmente em ${issuedAt} via ${COMPANY_CONFIG.systemName}`, 20, pageHeight - 12)
 
   return doc.output("blob")
 }
 
 // ─────────────────────────────────────────────
-// MOVEMENTS REPORT — SIMPLE & PRESENTATION PDF
+// 6. MOVEMENTS REPORT — SIMPLE & PRESENTATION PDF
 // ─────────────────────────────────────────────
 
 export interface MovementsStats {
@@ -939,53 +912,43 @@ export interface MovementsReportData {
   period: string
 }
 
-// ── Helper: rounded card with shadow ──
 function drawCard(doc: jsPDF, x: number, y: number, w: number, h: number, accentColor?: [number, number, number]) {
-  // Soft shadow
   doc.setFillColor(226, 232, 240)
   doc.roundedRect(x + 1.5, y + 1.5, w, h, 3, 3, "F")
-  // White card
   doc.setFillColor(255, 255, 255)
   doc.roundedRect(x, y, w, h, 3, 3, "F")
-  // Accent top bar
   if (accentColor) {
     doc.setFillColor(...accentColor)
     doc.roundedRect(x, y, w, 3, 3, 3, "F")
     doc.setFillColor(255, 255, 255)
-    doc.rect(x, y + 2, w, 2, "F") // clean bottom of radius
+    doc.rect(x, y + 2, w, 2, "F")
   }
 }
 
-// ── Simple / Operational PDF ──
 export function generateMovementsSimplePDF(data: MovementsReportData): void {
   const doc = new jsPDF({ orientation: "portrait", format: "a4" })
   const pw = doc.internal.pageSize.getWidth()
   const ph = doc.internal.pageSize.getHeight()
-  const mx = 14 // margin-x
+  const mx = 14
 
-  // ═══ HEADER ═══
   doc.setFillColor(r, g, b)
   doc.rect(0, 0, pw, 40, "F")
 
-  // Company name top-left
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
-  doc.setTextColor(255, 255, 255, 180)
+  doc.setTextColor(255, 255, 255)
   doc.text(COMPANY_CONFIG.name.toUpperCase(), mx, 12)
 
-  // Title
   doc.setFont("helvetica", "bold")
   doc.setFontSize(18)
   doc.setTextColor(255, 255, 255)
   doc.text("Relatório de Movimentações", mx, 27)
 
-  // Period + Date
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
-  doc.setTextColor(255, 255, 255, 200)
+  doc.setTextColor(255, 255, 255)
   doc.text(`${data.period}  ·  Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, mx, 35)
 
-  // ═══ KPI CARDS ═══
   const cardY = 48
   const cardW = (pw - mx * 2 - 9) / 4
   const cardH = 28
@@ -999,19 +962,16 @@ export function generateMovementsSimplePDF(data: MovementsReportData): void {
   kpis.forEach((kpi, i) => {
     const cx = mx + i * (cardW + 3)
     drawCard(doc, cx, cardY, cardW, cardH, kpi.color)
-    // Value
     doc.setFont("helvetica", "bold")
     doc.setFontSize(18)
     doc.setTextColor(...kpi.color)
     doc.text(kpi.value, cx + cardW / 2, cardY + 16, { align: "center" })
-    // Label
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7)
     doc.setTextColor(100, 116, 139)
     doc.text(kpi.label.toUpperCase(), cx + cardW / 2, cardY + 23, { align: "center" })
   })
 
-  // ═══ TABLE ═══
   autoTable(doc, {
     startY: cardY + cardH + 8,
     head: [["Data", "Colaborador", "EPI / CA", "Qtd", "Tipo", "Unidade"]],
@@ -1049,7 +1009,6 @@ export function generateMovementsSimplePDF(data: MovementsReportData): void {
     }
   })
 
-  // ═══ FOOTER ═══
   doc.setDrawColor(226, 232, 240)
   doc.setLineWidth(0.3)
   doc.line(mx, ph - 16, pw - mx, ph - 16)
@@ -1063,45 +1022,34 @@ export function generateMovementsSimplePDF(data: MovementsReportData): void {
   doc.save(`Movimentacoes_Simples_${format(new Date(), "yyyyMMdd")}.pdf`)
 }
 
-// ── Presentation PDF (Landscape, executive) ──
 export function generateMovementsPresentationPDF(data: MovementsReportData): void {
   const doc = new jsPDF({ orientation: "landscape", format: "a4" })
   const pw = doc.internal.pageSize.getWidth()
   const ph = doc.internal.pageSize.getHeight()
 
-  // ══════════════════════════════════════════
-  //  PAGE 1: EXECUTIVE DASHBOARD
-  // ══════════════════════════════════════════
-
-  // Full company-color header bar
   doc.setFillColor(r, g, b)
   doc.rect(0, 0, pw, 50, "F")
 
-  // Company name
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
   doc.setTextColor(255, 255, 255)
   doc.text(COMPANY_CONFIG.name.toUpperCase(), 18, 14)
 
-  // Title
   doc.setFont("helvetica", "bold")
   doc.setFontSize(26)
   doc.setTextColor(255, 255, 255)
   doc.text("RELATÓRIO DE MOVIMENTAÇÕES DE EPI", 18, 32)
 
-  // Subtitle
   doc.setFont("helvetica", "normal")
   doc.setFontSize(10)
   doc.setTextColor(255, 255, 255)
   doc.text(`Período: ${data.period}  ·  Emitido em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, 18, 44)
 
-  // Right side - System badge
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
   doc.setTextColor(255, 255, 255)
   doc.text(COMPANY_CONFIG.systemName.toUpperCase(), pw - 18, 44, { align: "right" })
 
-  // ═══ KPI ROW ═══
   const kpiY = 60
   const kpiW = (pw - 36 - 15) / 4
   const kpiH = 32
@@ -1125,20 +1073,16 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
     doc.text(kpi.label.toUpperCase(), cx + kpiW / 2, kpiY + 25, { align: "center" })
   })
 
-  // ═══ CHART AREA ═══
   const chartsY = kpiY + kpiH + 12
   const chartsH = ph - chartsY - 20
 
-  // ── LEFT COLUMN: Top EPIs Bar Chart ──
   const leftW = (pw - 36 - 10) * 0.5
   drawCard(doc, 18, chartsY, leftW, chartsH)
 
-  // Chart title
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
   doc.setTextColor(30, 41, 59)
   doc.text("TOP EPIS MAIS MOVIMENTADOS", 24, chartsY + 12)
-
   doc.setDrawColor(241, 245, 249)
   doc.setLineWidth(0.3)
   doc.line(24, chartsY + 15, 18 + leftW - 6, chartsY + 15)
@@ -1158,50 +1102,30 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   topEpis.forEach(([name, count], i) => {
     const y = barAreaY + i * singleBarH
     const filledW = (count / barMaxVal) * barAreaW
-
-    // Label (left aligned)
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7)
     doc.setTextColor(71, 85, 105)
     const truncName = name.length > 20 ? name.slice(0, 20) + "…" : name
     doc.text(truncName, 24, y + singleBarH / 2)
-
-    // Track
     const barX = 24 + 50
     doc.setFillColor(241, 245, 249)
     doc.roundedRect(barX, y + 1, barAreaW, singleBarH - 4, 2, 2, "F")
-
-    // Filled bar
     if (filledW > 0) {
       doc.setFillColor(r, g, b)
       doc.roundedRect(barX, y + 1, filledW, singleBarH - 4, 2, 2, "F")
     }
-
-    // Count label
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7)
     doc.setTextColor(r, g, b)
     doc.text(String(count), barX + filledW + 4, y + singleBarH / 2)
   })
 
-  if (topEpis.length === 0) {
-    doc.setFont("helvetica", "italic")
-    doc.setFontSize(9)
-    doc.setTextColor(148, 163, 184)
-    doc.text("Sem dados para exibir", 18 + leftW / 2, chartsY + chartsH / 2, { align: "center" })
-  }
-
-  // ── RIGHT COLUMN: Split into two cards ──
   const rightX = 18 + leftW + 10
   const rightW = pw - rightX - 18
-
-  // ── Fixed card heights based on content, not ratio ──
   const topCardH = 50
   const bottomCardH = chartsH - topCardH - 8
 
-  // ── TOP RIGHT: Entregas vs Devoluções ──
   drawCard(doc, rightX, chartsY, rightW, topCardH)
-
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
   doc.setTextColor(30, 41, 59)
@@ -1210,61 +1134,43 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   doc.setLineWidth(0.3)
   doc.line(rightX + 6, chartsY + 14, rightX + rightW - 6, chartsY + 14)
 
-  const total = data.stats.deliveries + data.stats.returns
   if (total > 0) {
     const delivPct = data.stats.deliveries / total
     const retPct = data.stats.returns / total
-    const stackW = rightW - 20  // 10px padding each side
+    const stackW = rightW - 20
     const stackBarY = chartsY + 20
     const stackBarH = 14
-
-    // Blue (Entregas) segment
     const delivW = stackW * delivPct
     const retW = stackW * retPct
     if (delivW > 2) {
       doc.setFillColor(37, 99, 235)
       doc.roundedRect(rightX + 10, stackBarY, delivW, stackBarH, 2, 2, "F")
     }
-    // Orange (Devoluções) segment
     if (retW > 2) {
       doc.setFillColor(217, 119, 6)
       doc.roundedRect(rightX + 10 + delivW, stackBarY, retW, stackBarH, 2, 2, "F")
     }
-
-    // Percentage labels inside bars (white text)
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
     doc.setTextColor(255, 255, 255)
     if (delivW > 20) doc.text(`${Math.round(delivPct * 100)}%`, rightX + 10 + delivW / 2, stackBarY + 10, { align: "center" })
     if (retW > 20) doc.text(`${Math.round(retPct * 100)}%`, rightX + 10 + delivW + retW / 2, stackBarY + 10, { align: "center" })
 
-    // Legend — two items side by side, each half width
     const legY = stackBarY + stackBarH + 8
     const halfW = (rightW - 20) / 2
-
-    // Entregas legend
     doc.setFillColor(37, 99, 235)
     doc.roundedRect(rightX + 10, legY, 7, 7, 1, 1, "F")
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7.5)
     doc.setTextColor(30, 41, 59)
     doc.text(`Entregas: ${data.stats.deliveries}`, rightX + 20, legY + 5.5)
-
-    // Devoluções legend
     doc.setFillColor(217, 119, 6)
     doc.roundedRect(rightX + 10 + halfW, legY, 7, 7, 1, 1, "F")
     doc.text(`Devoluções: ${data.stats.returns}`, rightX + 20 + halfW, legY + 5.5)
-  } else {
-    doc.setFont("helvetica", "italic")
-    doc.setFontSize(8)
-    doc.setTextColor(148, 163, 184)
-    doc.text("Sem dados para exibir", rightX + rightW / 2, chartsY + topCardH / 2, { align: "center" })
   }
 
-  // ── BOTTOM RIGHT: Movimentações por Unidade ──
   const botY = chartsY + topCardH + 8
   drawCard(doc, rightX, botY, rightW, bottomCardH)
-
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
   doc.setTextColor(30, 41, 59)
@@ -1278,67 +1184,50 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
     const wp = m.workplace?.name || "Geral"
     wpCount[wp] = (wpCount[wp] || 0) + 1
   })
-
-  // Limit items so they fit: bottomCardH - 20 (header) / 11 (row height) = max rows
   const maxWpRows = Math.max(1, Math.floor((bottomCardH - 22) / 11))
   const topWp = Object.entries(wpCount).sort((a, b) => b[1] - a[1]).slice(0, Math.min(maxWpRows, 5))
   const wpMaxVal = topWp[0]?.[1] || 1
   const labelW = 50
-  const wpBarW = rightW - labelW - 24  // 12px left + labelW + 12px right
+  const wpBarW = rightW - labelW - 24
 
   topWp.forEach(([wp, count], i) => {
     const rowY = botY + 20 + i * 11
     const filledW = (count / wpMaxVal) * wpBarW
-
-    // Label
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7)
     doc.setTextColor(71, 85, 105)
     const wpLabel = wp.length > 14 ? wp.slice(0, 14) + "…" : wp
     doc.text(wpLabel, rightX + 8, rowY + 5.5)
-
-    // Track
     doc.setFillColor(241, 245, 249)
     doc.roundedRect(rightX + 8 + labelW, rowY, wpBarW, 8, 2, 2, "F")
-    // Filled
     if (filledW > 0) {
       doc.setFillColor(5, 150, 105)
       doc.roundedRect(rightX + 8 + labelW, rowY, filledW, 8, 2, 2, "F")
     }
-    // Count to the right of the bar
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7)
     doc.setTextColor(5, 150, 105)
     doc.text(String(count), rightX + 10 + labelW + wpBarW + 2, rowY + 5.5)
   })
 
-  // ═══ FOOTER PAGE 1 ═══
   doc.setFillColor(r, g, b)
   doc.rect(0, ph - 14, pw, 14, "F")
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7)
   doc.setTextColor(255, 255, 255)
   doc.text(`${COMPANY_CONFIG.name}  ·  Documento Confidencial  ·  ${COMPANY_CONFIG.systemName}`, pw / 2, ph - 5, { align: "center" })
-  doc.setTextColor(255, 255, 255)
   doc.text("Página 1 de 2", pw - 18, ph - 5, { align: "right" })
 
-  // ══════════════════════════════════════════
-  //  PAGE 2: DETAILED TABLE
-  // ══════════════════════════════════════════
   doc.addPage()
-
-  // Header bar
   doc.setFillColor(r, g, b)
   doc.rect(0, 0, pw, 30, "F")
-
   doc.setFont("helvetica", "bold")
   doc.setFontSize(14)
   doc.setTextColor(255, 255, 255)
   doc.text("DETALHAMENTO COMPLETO DE MOVIMENTAÇÕES", 18, 18)
-
   doc.setFont("helvetica", "normal")
   doc.setFontSize(8)
-  doc.setTextColor(148, 163, 184)
+  doc.setTextColor(255, 255, 255)
   doc.text(`${data.period}  ·  ${data.movements.length} registros`, pw - 18, 18, { align: "right" })
 
   autoTable(doc, {
@@ -1382,14 +1271,12 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
     }
   })
 
-  // Footer page 2
   doc.setFillColor(r, g, b)
   doc.rect(0, ph - 14, pw, 14, "F")
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7)
   doc.setTextColor(255, 255, 255)
   doc.text(`${COMPANY_CONFIG.name}  ·  Documento Confidencial  ·  ${COMPANY_CONFIG.systemName}`, pw / 2, ph - 5, { align: "center" })
-  doc.setTextColor(255, 255, 255)
   doc.text("Página 2 de 2", pw - 18, ph - 5, { align: "right" })
 
   doc.save(`Movimentacoes_Apresentacao_${format(new Date(), "yyyyMMdd")}.pdf`)
