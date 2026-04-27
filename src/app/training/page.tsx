@@ -120,7 +120,7 @@ export default function TrainingPage() {
       })
 
       const trainedEmployee = employees.find(emp => emp.id === formData.employee_id)
-      const pdfBlob = generateTrainingCertificate({
+      const pdfBlob = await generateTrainingCertificate({
         employeeName: trainedEmployee?.full_name || "N/A",
         employeeCpf: trainedEmployee?.cpf || "N/A",
         trainingName: finalTrainingName,
@@ -200,8 +200,8 @@ export default function TrainingPage() {
     }
   }
 
-  const downloadCertificate = (rec: TrainingWithRelations) => {
-    const pdfBlob = generateTrainingCertificate({
+  const downloadCertificate = async (rec: TrainingWithRelations) => {
+    const pdfBlob = await generateTrainingCertificate({
       employeeName: rec.employee?.full_name || "N/A",
       employeeCpf: rec.employee?.cpf || "N/A",
       trainingName: rec.training_name,

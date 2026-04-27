@@ -760,7 +760,7 @@ export interface TrainingCertificateData {
   signatureBase64?: string
 }
 
-export function generateTrainingCertificate(data: TrainingCertificateData): Blob {
+export async function generateTrainingCertificate(data: TrainingCertificateData): Promise<Blob> {
   const doc = new jsPDF({ orientation: "landscape", format: "a4" })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -777,7 +777,31 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
   doc.setLineWidth(0.5)
   doc.rect(20, 20, pageWidth - 40, pageHeight - 40)
 
-  if (COMPANY_CONFIG.logoUrl) {
+  let logoBase64: string | null = null;
+  try {
+    const logoRes = await fetch('/logo.png');
+    const logoBlob = await logoRes.blob();
+    logoBase64 = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(logoBlob);
+    });
+  } catch (e) {
+    console.error("Could not load logo.png", e);
+  }
+
+  if (logoBase64) {
+    try {
+      const imgWidth = 60;
+      const imgHeight = 45;
+      doc.addImage(logoBase64, "PNG", centerX - imgWidth / 2, 22, imgWidth, imgHeight);
+    } catch {
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(24)
+      doc.setTextColor(r, g, b)
+      doc.text(COMPANY_CONFIG.name, centerX, 38, { align: "center" })
+    }
+  } else if (COMPANY_CONFIG.logoUrl) {
     try {
       const imgWidth = 40
       const imgHeight = 15
@@ -825,13 +849,26 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
   doc.setTextColor(30, 41, 59)
   doc.text(data.trainingName.toUpperCase(), centerX, 138, { align: "center" })
 
+  const getTrainingWorkload = (name: string): number => {
+    const n = name.toLowerCase();
+    if (n.includes('nr-10') || n.includes('nr 10')) return 40;
+    if (n.includes('nr-33') && n.includes('supervisor')) return 40;
+    if (n.includes('nr-33') || n.includes('nr 33')) return 16;
+    if (n.includes('nr-35') || n.includes('nr 35')) return 8;
+    if (n.includes('nr-12') || n.includes('nr 12')) return 16;
+    if (n.includes('nr-20') || n.includes('nr 20')) return 16;
+    if (n.includes('nr-05') || n.includes('nr 05') || n.includes('cipa')) return 20;
+    return 4; // Carga horária mínima padrão
+  };
+  const workload = getTrainingWorkload(data.trainingName);
+
   const completionText = format(new Date(data.completionDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
   const validUntilText = format(new Date(data.expiryDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
 
   doc.setFont("helvetica", "normal")
   doc.setFontSize(12)
   doc.setTextColor(71, 85, 105)
-  doc.text(`Realizado em: ${completionText}  |  Válido até: ${validUntilText}`, centerX, 150, { align: "center" })
+  doc.text(`Realizado em: ${completionText}  |  Carga Horária: ${workload}h  |  Válido até: ${validUntilText}`, centerX, 150, { align: "center" })
 
   // ── Signer block: always anchored 55mm from page bottom so it never overflows ──
   const signerBlockX = centerX - 40
