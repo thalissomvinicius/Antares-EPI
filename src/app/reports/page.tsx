@@ -31,6 +31,8 @@ export default function ReportsPage() {
   const [customStartDate, setCustomStartDate] = useState<string>('')
   const [customEndDate, setCustomEndDate] = useState<string>('')
   const [specificMonth, setSpecificMonth] = useState<string>('')
+  const [specificMonthSel, setSpecificMonthSel] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'))
+  const [specificYearSel, setSpecificYearSel] = useState<string>(String(new Date().getFullYear()))
   
   // Computed Data State
   const [allDeliveries, setAllDeliveries] = useState<DeliveryWithRelations[]>([])
@@ -260,14 +262,38 @@ export default function ReportsPage() {
           </div>
           
           {dateFilter === 'specific_month' && (
-            <input 
-              type="month"
-              title="Mês Selecionado"
-              placeholder="AAAA-MM"
-              value={specificMonth}
-              onChange={e => setSpecificMonth(e.target.value)}
-              className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold text-xs outline-none focus:border-[#8B1A1A]"
-            />
+            <div className="flex gap-2">
+              <select
+                id="specific-month-sel-rep"
+                aria-label="Mês"
+                title="Selecionar mês"
+                value={specificMonthSel}
+                onChange={e => {
+                  setSpecificMonthSel(e.target.value)
+                  setSpecificMonth(`${specificYearSel}-${e.target.value}`)
+                }}
+                className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold text-xs outline-none focus:border-[#8B1A1A]"
+              >
+                {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m, i) => (
+                  <option key={m} value={m}>{['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][i]}</option>
+                ))}
+              </select>
+              <select
+                id="specific-year-sel-rep"
+                aria-label="Ano"
+                title="Selecionar ano"
+                value={specificYearSel}
+                onChange={e => {
+                  setSpecificYearSel(e.target.value)
+                  setSpecificMonth(`${e.target.value}-${specificMonthSel}`)
+                }}
+                className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold text-xs outline-none focus:border-[#8B1A1A]"
+              >
+                {[2023,2024,2025,2026,2027].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
           )}
 
           {dateFilter === 'custom' && (

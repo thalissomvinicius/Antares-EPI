@@ -10,12 +10,14 @@ import { ptBR } from "date-fns/locale"
 import { DeliveryWithRelations } from "@/types/database"
 import { exportDeliveriesToExcel } from "@/utils/excelExporter"
 import { generateMovementsSimplePDF, generateMovementsPresentationPDF } from "@/utils/pdfGenerator"
+import { usePdfActionDialog } from "@/hooks/usePdfActionDialog"
 
 type DateFilter = 'all' | 'month' | 'last30' | 'last60' | 'last90' | 'custom' | 'specific_month'
 
 export default function MovementsPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
   const [loading, setLoading] = useState(true)
   const [rawDeliveries, setRawDeliveries] = useState<DeliveryWithRelations[]>([])
   const [showPdfModal, setShowPdfModal] = useState(false)
@@ -25,6 +27,8 @@ export default function MovementsPage() {
   const [customStartDate, setCustomStartDate] = useState<string>('')
   const [customEndDate, setCustomEndDate] = useState<string>('')
   const [specificMonth, setSpecificMonth] = useState<string>('')
+  const [specificMonthSel, setSpecificMonthSel] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'))
+  const [specificYearSel, setSpecificYearSel] = useState<string>(String(new Date().getFullYear()))
   const [searchTerm, setSearchTerm] = useState("")
 
   // Auth protection
@@ -118,12 +122,20 @@ export default function MovementsPage() {
   }
 
   const handleSimplePDF = () => {
-    generateMovementsSimplePDF({ movements: filteredMovements, stats, period: getPeriodLabel() })
+    const blob = generateMovementsSimplePDF({ movements: filteredMovements, stats, period: getPeriodLabel() })
+    openPdfDialog(blob, `Movimentacoes_Simples_${new Date().toISOString().slice(0,10)}.pdf`, {
+      title: "PDF Simples — Movimentações",
+      description: `Período: ${getPeriodLabel()} · ${filteredMovements.length} registros`
+    })
     setShowPdfModal(false)
   }
 
   const handlePresentationPDF = () => {
-    generateMovementsPresentationPDF({ movements: filteredMovements, stats, period: getPeriodLabel() })
+    const blob = generateMovementsPresentationPDF({ movements: filteredMovements, stats, period: getPeriodLabel() })
+    openPdfDialog(blob, `Movimentacoes_Apresentacao_${new Date().toISOString().slice(0,10)}.pdf`, {
+      title: "PDF Apresentação — Movimentações",
+      description: `Período: ${getPeriodLabel()} · ${filteredMovements.length} registros`
+    })
     setShowPdfModal(false)
   }
 
@@ -238,17 +250,39 @@ export default function MovementsPage() {
         {/* Custom Inputs */}
         {dateFilter === 'specific_month' && (
           <div className="pt-4 border-t border-slate-50 animate-in slide-in-from-top-2">
-            <label htmlFor="specific-month-input" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Selecione o Mês</label>
-            <input
-              id="specific-month-input"
-              type="month"
-              title="Selecionar mês específico"
-              aria-label="Selecionar mês específico"
-              placeholder="YYYY-MM"
-              value={specificMonth}
-              onChange={e => setSpecificMonth(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-[#8B1A1A] outline-none"
-            />
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Selecione o Mês</label>
+            <div className="flex gap-2">
+              <select
+                id="specific-month-sel"
+                aria-label="Mês"
+                title="Selecionar mês"
+                value={specificMonthSel}
+                onChange={e => {
+                  setSpecificMonthSel(e.target.value)
+                  setSpecificMonth(`${specificYearSel}-${e.target.value}`)
+                }}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-[#8B1A1A] outline-none"
+              >
+                {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m, i) => (
+                  <option key={m} value={m}>{['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][i]}</option>
+                ))}
+              </select>
+              <select
+                id="specific-year-sel"
+                aria-label="Ano"
+                title="Selecionar ano"
+                value={specificYearSel}
+                onChange={e => {
+                  setSpecificYearSel(e.target.value)
+                  setSpecificMonth(`${e.target.value}-${specificMonthSel}`)
+                }}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-[#8B1A1A] outline-none"
+              >
+                {[2023,2024,2025,2026,2027].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
 
@@ -438,6 +472,7 @@ export default function MovementsPage() {
           </div>
         </div>
       )}
+      {pdfActionDialog}
     </div>
   )
 }

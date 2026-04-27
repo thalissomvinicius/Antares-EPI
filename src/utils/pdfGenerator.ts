@@ -833,12 +833,13 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
   doc.setTextColor(71, 85, 105)
   doc.text(`Realizado em: ${completionText}  |  Válido até: ${validUntilText}`, centerX, 150, { align: "center" })
 
+  // ── Signer block: always anchored 55mm from page bottom so it never overflows ──
   const signerBlockX = centerX - 40
   const signerBlockWidth = 80
-  const imageTopY = 162
-  const separatorY = 186
-  const signerNameY = 193
-  const signerRoleY = 198
+  const imageTopY = pageHeight - 55
+  const separatorY = pageHeight - 32
+  const signerNameY = pageHeight - 25
+  const signerRoleY = pageHeight - 20
 
   if (data.instructorName) {
     if (data.signatureBase64) {
@@ -846,8 +847,8 @@ export function generateTrainingCertificate(data: TrainingCertificateData): Blob
         const imgProps = doc.getImageProperties(data.signatureBase64)
         const ratio = imgProps.width / imgProps.height
         const isPhoto = ratio <= 1.5
-        const maxW = isPhoto ? 18 : 34
-        const maxH = isPhoto ? 18 : 10
+        const maxW = isPhoto ? 18 : 50
+        const maxH = isPhoto ? 18 : 14
         let drawW = maxW
         let drawH = drawW / ratio
 
@@ -924,7 +925,7 @@ function drawCard(doc: jsPDF, x: number, y: number, w: number, h: number, accent
   }
 }
 
-export function generateMovementsSimplePDF(data: MovementsReportData): void {
+export function generateMovementsSimplePDF(data: MovementsReportData): Blob {
   const doc = new jsPDF({ orientation: "portrait", format: "a4" })
   const pw = doc.internal.pageSize.getWidth()
   const ph = doc.internal.pageSize.getHeight()
@@ -1018,10 +1019,10 @@ export function generateMovementsSimplePDF(data: MovementsReportData): void {
   doc.text(`${COMPANY_CONFIG.name} — ${COMPANY_CONFIG.systemName}`, mx, ph - 10)
   doc.text(`Total: ${data.movements.length} registros`, pw - mx, ph - 10, { align: "right" })
 
-  doc.save(`Movimentacoes_Simples_${format(new Date(), "yyyyMMdd")}.pdf`)
+  return doc.output("blob")
 }
 
-export function generateMovementsPresentationPDF(data: MovementsReportData): void {
+export function generateMovementsPresentationPDF(data: MovementsReportData): Blob {
   const doc = new jsPDF({ orientation: "landscape", format: "a4" })
   const pw = doc.internal.pageSize.getWidth()
   const ph = doc.internal.pageSize.getHeight()
@@ -1279,5 +1280,5 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   doc.text(`${COMPANY_CONFIG.name}  ·  Documento Confidencial  ·  ${COMPANY_CONFIG.systemName}`, pw / 2, ph - 5, { align: "center" })
   doc.text("Página 2 de 2", pw - 18, ph - 5, { align: "right" })
 
-  doc.save(`Movimentacoes_Apresentacao_${format(new Date(), "yyyyMMdd")}.pdf`)
+  return doc.output("blob")
 }
