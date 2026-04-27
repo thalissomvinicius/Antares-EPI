@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowRightLeft, Search, Calendar, Filter, FileSpreadsheet, Loader2, ArrowUpRight, ArrowDownLeft, Shield, Users } from "lucide-react"
+import { ArrowRightLeft, Search, Calendar, Filter, FileSpreadsheet, Loader2, ArrowUpRight, ArrowDownLeft, Shield, Users, FileDown, Presentation, X } from "lucide-react"
 import { api } from "@/services/api"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
@@ -9,6 +9,7 @@ import { format, startOfMonth, endOfMonth, subDays, isWithinInterval } from "dat
 import { ptBR } from "date-fns/locale"
 import { DeliveryWithRelations } from "@/types/database"
 import { exportDeliveriesToExcel } from "@/utils/excelExporter"
+import { generateMovementsSimplePDF, generateMovementsPresentationPDF } from "@/utils/pdfGenerator"
 
 type DateFilter = 'all' | 'month' | 'last30' | 'last60' | 'last90' | 'custom' | 'specific_month'
 
@@ -17,7 +18,8 @@ export default function MovementsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [rawDeliveries, setRawDeliveries] = useState<DeliveryWithRelations[]>([])
-  
+  const [showPdfModal, setShowPdfModal] = useState(false)
+
   // Filter State
   const [dateFilter, setDateFilter] = useState<DateFilter>('month')
   const [customStartDate, setCustomStartDate] = useState<string>('')
@@ -78,14 +80,14 @@ export default function MovementsPage() {
       if (start) {
         filtered = filtered.filter(d => {
           const dDate = new Date(d.delivery_date)
-          return isWithinInterval(dDate, { start, end })
+          return isWithinInterval(dDate, { start: start!, end })
         })
       }
     }
 
     if (searchTerm) {
       const lower = searchTerm.toLowerCase()
-      filtered = filtered.filter(d => 
+      filtered = filtered.filter(d =>
         d.employee?.full_name.toLowerCase().includes(lower) ||
         d.ppe?.name.toLowerCase().includes(lower) ||
         d.employee?.cpf.includes(searchTerm)
@@ -96,12 +98,33 @@ export default function MovementsPage() {
   }
 
   const filteredMovements = getFilteredData()
-  
+
   const stats = {
     deliveries: filteredMovements.filter(m => !m.returned_at).length,
     returns: filteredMovements.filter(m => m.returned_at).length,
     totalItems: filteredMovements.reduce((acc, m) => acc + m.quantity, 0),
     uniqueEmployees: new Set(filteredMovements.map(m => m.employee_id)).size
+  }
+
+  const getPeriodLabel = () => {
+    if (dateFilter === 'month') return `Mês de ${format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}`
+    if (dateFilter === 'last30') return 'Últimos 30 dias'
+    if (dateFilter === 'last60') return 'Últimos 60 dias'
+    if (dateFilter === 'last90') return 'Últimos 90 dias'
+    if (dateFilter === 'all') return 'Todo o período'
+    if (dateFilter === 'specific_month' && specificMonth) return `Mês ${specificMonth}`
+    if (dateFilter === 'custom' && customStartDate && customEndDate) return `${customStartDate} a ${customEndDate}`
+    return 'Período selecionado'
+  }
+
+  const handleSimplePDF = () => {
+    generateMovementsSimplePDF({ movements: filteredMovements, stats, period: getPeriodLabel() })
+    setShowPdfModal(false)
+  }
+
+  const handlePresentationPDF = () => {
+    generateMovementsPresentationPDF({ movements: filteredMovements, stats, period: getPeriodLabel() })
+    setShowPdfModal(false)
   }
 
   return (
@@ -114,21 +137,32 @@ export default function MovementsPage() {
           </h1>
           <p className="text-slate-500 text-sm mt-1 font-medium italic">Monitoramento completo de entradas e saídas por período.</p>
         </div>
-        
-        <button
-          onClick={() => exportDeliveriesToExcel(filteredMovements)}
-          className="w-full md:w-auto bg-[#1e293b] hover:bg-slate-800 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center"
-        >
-          <FileSpreadsheet className="w-4 h-4 mr-2" />
-          Exportar Planilha
-        </button>
+
+        <div className="w-full md:w-auto flex gap-2">
+          <button
+            onClick={() => exportDeliveriesToExcel(filteredMovements)}
+            title="Exportar para planilha Excel"
+            className="flex-1 md:flex-none bg-[#1e293b] hover:bg-slate-800 text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Excel
+          </button>
+          <button
+            onClick={() => setShowPdfModal(true)}
+            title="Gerar relatório em PDF"
+            className="flex-1 md:flex-none bg-[#8B1A1A] hover:bg-[#681313] text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
+          >
+            <FileDown className="w-4 h-4" />
+            PDF
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row gap-6 items-end">
           <div className="flex-1 space-y-2 w-full">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+            <label id="label-periodo" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
               <Calendar className="w-3 h-3 mr-1" /> Período
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -140,10 +174,11 @@ export default function MovementsPage() {
               ].map(opt => (
                 <button
                   key={opt.id}
+                  title={`Filtrar por: ${opt.label}`}
                   onClick={() => setDateFilter(opt.id as DateFilter)}
                   className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border ${
-                    dateFilter === opt.id 
-                      ? "bg-[#8B1A1A] border-[#8B1A1A] text-white shadow-md shadow-red-900/20" 
+                    dateFilter === opt.id
+                      ? "bg-[#8B1A1A] border-[#8B1A1A] text-white shadow-md shadow-red-900/20"
                       : "bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300"
                   }`}
                 >
@@ -154,25 +189,27 @@ export default function MovementsPage() {
           </div>
 
           <div className="flex-1 space-y-2 w-full">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+            <label id="label-outros" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
               <Filter className="w-3 h-3 mr-1" /> Outros Filtros
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
+                title="Filtrar por mês específico"
                 onClick={() => setDateFilter('specific_month')}
                 className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border ${
-                  dateFilter === 'specific_month' 
-                    ? "bg-[#8B1A1A] border-[#8B1A1A] text-white shadow-md shadow-red-900/20" 
+                  dateFilter === 'specific_month'
+                    ? "bg-[#8B1A1A] border-[#8B1A1A] text-white shadow-md shadow-red-900/20"
                     : "bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300"
                 }`}
               >
                 Mês Específico
               </button>
               <button
+                title="Filtrar por período personalizado"
                 onClick={() => setDateFilter('custom')}
                 className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border ${
-                  dateFilter === 'custom' 
-                    ? "bg-[#8B1A1A] border-[#8B1A1A] text-white shadow-md shadow-red-900/20" 
+                  dateFilter === 'custom'
+                    ? "bg-[#8B1A1A] border-[#8B1A1A] text-white shadow-md shadow-red-900/20"
                     : "bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300"
                 }`}
               >
@@ -182,12 +219,15 @@ export default function MovementsPage() {
           </div>
 
           <div className="flex-1 space-y-2 w-full">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+            <label htmlFor="search-mov" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
               <Search className="w-3 h-3 mr-1" /> Pesquisar
             </label>
             <input
+              id="search-mov"
               type="text"
               placeholder="Nome, CPF ou EPI..."
+              title="Pesquisar movimentações"
+              aria-label="Pesquisar movimentações"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-[#8B1A1A] outline-none transition-all"
@@ -198,9 +238,13 @@ export default function MovementsPage() {
         {/* Custom Inputs */}
         {dateFilter === 'specific_month' && (
           <div className="pt-4 border-t border-slate-50 animate-in slide-in-from-top-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Selecione o Mês</label>
+            <label htmlFor="specific-month-input" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Selecione o Mês</label>
             <input
+              id="specific-month-input"
               type="month"
+              title="Selecionar mês específico"
+              aria-label="Selecionar mês específico"
+              placeholder="YYYY-MM"
               value={specificMonth}
               onChange={e => setSpecificMonth(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-[#8B1A1A] outline-none"
@@ -211,18 +255,24 @@ export default function MovementsPage() {
         {dateFilter === 'custom' && (
           <div className="pt-4 border-t border-slate-50 flex gap-4 animate-in slide-in-from-top-2">
             <div className="flex-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Início</label>
+              <label htmlFor="custom-start" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Início</label>
               <input
+                id="custom-start"
                 type="date"
+                title="Data de início"
+                aria-label="Data de início"
                 value={customStartDate}
                 onChange={e => setCustomStartDate(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-[#8B1A1A] outline-none"
               />
             </div>
             <div className="flex-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fim</label>
+              <label htmlFor="custom-end" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fim</label>
               <input
+                id="custom-end"
                 type="date"
+                title="Data de fim"
+                aria-label="Data de fim"
                 value={customEndDate}
                 onChange={e => setCustomEndDate(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-[#8B1A1A] outline-none"
@@ -300,12 +350,12 @@ export default function MovementsPage() {
                     </td>
                     <td className="px-6 py-5 text-center">
                       {move.returned_at ? (
-                        <span className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center">
-                          <ArrowDownLeft className="w-3 h-3 mr-1" /> Devolução
+                        <span className="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1">
+                          <ArrowDownLeft className="w-3 h-3" /> Devolução
                         </span>
                       ) : (
-                        <span className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center">
-                          <ArrowUpRight className="w-3 h-3 mr-1" /> Entrega
+                        <span className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1">
+                          <ArrowUpRight className="w-3 h-3" /> Entrega
                         </span>
                       )}
                     </td>
@@ -329,6 +379,65 @@ export default function MovementsPage() {
           )}
         </div>
       </div>
+
+      {/* PDF Choice Modal */}
+      {showPdfModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-slate-200 animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h2 className="font-black text-slate-800 uppercase tracking-tighter text-xl">Gerar Relatório PDF</h2>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Escolha o formato ideal para sua necessidade</p>
+              </div>
+              <button onClick={() => setShowPdfModal(false)} title="Fechar" className="text-slate-400 hover:text-slate-600 transition-colors p-2 hover:bg-slate-50 rounded-xl">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Simple PDF */}
+              <button
+                onClick={handleSimplePDF}
+                className="group flex flex-col items-center text-center p-6 rounded-2xl border-2 border-slate-100 hover:border-[#8B1A1A]/30 hover:bg-red-50/30 transition-all"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-[#8B1A1A]/10 flex items-center justify-center mb-4 transition-all">
+                  <FileDown className="w-7 h-7 text-slate-500 group-hover:text-[#8B1A1A]" />
+                </div>
+                <h3 className="font-black text-slate-800 uppercase tracking-tighter text-sm mb-2">PDF Simples</h3>
+                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                  Relatório operacional com tabela completa e resumo de indicadores. Ideal para arquivo e controle interno.
+                </p>
+                <span className="mt-4 text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg">
+                  Retrato · 1 página+
+                </span>
+              </button>
+
+              {/* Presentation PDF */}
+              <button
+                onClick={handlePresentationPDF}
+                className="group flex flex-col items-center text-center p-6 rounded-2xl border-2 border-slate-100 hover:border-[#8B1A1A]/30 hover:bg-red-50/30 transition-all"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-[#8B1A1A]/10 group-hover:bg-[#8B1A1A]/20 flex items-center justify-center mb-4 transition-all">
+                  <Presentation className="w-7 h-7 text-[#8B1A1A]" />
+                </div>
+                <h3 className="font-black text-slate-800 uppercase tracking-tighter text-sm mb-2">PDF Apresentação</h3>
+                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                  Relatório executivo com gráficos visuais e layout premium. Ideal para reuniões com gestores e diretoria.
+                </p>
+                <span className="mt-4 text-[9px] font-black uppercase tracking-widest text-[#8B1A1A] bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg">
+                  Paisagem · 2 páginas
+                </span>
+              </button>
+            </div>
+
+            <div className="px-6 pb-6">
+              <p className="text-[10px] text-center text-slate-400 italic">
+                Período: <strong>{getPeriodLabel()}</strong> · {filteredMovements.length} movimentações
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

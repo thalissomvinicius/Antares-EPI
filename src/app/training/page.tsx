@@ -535,6 +535,7 @@ export default function TrainingPage() {
                             <img src={tstSignatureBase64} alt="Assinatura" className="w-full h-32 object-contain bg-slate-50" />
                             <button
                               onClick={() => setTstSignatureBase64(null)}
+                              title="Remover assinatura"
                               className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow-lg"
                             >
                               <X className="w-3 h-3" />
@@ -582,6 +583,7 @@ export default function TrainingPage() {
                             <img src={tstSignatureBase64} alt="Foto" className="w-full h-48 object-cover bg-slate-900" />
                             <button
                               onClick={() => { setTstSignatureBase64(null); setIsFaceCameraTstOpen(true); }}
+                              title="Refazer foto"
                               className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow-lg"
                             >
                               <X className="w-3 h-3" />
