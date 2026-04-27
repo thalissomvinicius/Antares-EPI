@@ -1073,18 +1073,14 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   //  PAGE 1: EXECUTIVE DASHBOARD
   // ══════════════════════════════════════════
 
-  // Full dark header bar
-  doc.setFillColor(15, 23, 42)
-  doc.rect(0, 0, pw, 50, "F")
-
-  // Red accent line at bottom of header
+  // Full company-color header bar
   doc.setFillColor(r, g, b)
-  doc.rect(0, 50, pw, 2.5, "F")
+  doc.rect(0, 0, pw, 50, "F")
 
   // Company name
   doc.setFont("helvetica", "bold")
   doc.setFontSize(9)
-  doc.setTextColor(r, g, b)
+  doc.setTextColor(255, 255, 255)
   doc.text(COMPANY_CONFIG.name.toUpperCase(), 18, 14)
 
   // Title
@@ -1096,13 +1092,13 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   // Subtitle
   doc.setFont("helvetica", "normal")
   doc.setFontSize(10)
-  doc.setTextColor(148, 163, 184)
+  doc.setTextColor(255, 255, 255, 180)
   doc.text(`Período: ${data.period}  ·  Emitido em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, 18, 44)
 
   // Right side - System badge
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
-  doc.setTextColor(100, 116, 139)
+  doc.setTextColor(255, 255, 255, 150)
   doc.text(COMPANY_CONFIG.systemName.toUpperCase(), pw - 18, 44, { align: "right" })
 
   // ═══ KPI ROW ═══
@@ -1198,7 +1194,7 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   // ── RIGHT COLUMN: Split into two cards ──
   const rightX = 18 + leftW + 10
   const rightW = pw - rightX - 18
-  const topCardH = (chartsH - 8) * 0.55
+  const topCardH = (chartsH - 8) * 0.45
   const bottomCardH = chartsH - topCardH - 8
 
   // -- TOP RIGHT: Entregas vs Devoluções --
@@ -1269,7 +1265,7 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
     const wp = m.workplace?.name || "Geral"
     wpCount[wp] = (wpCount[wp] || 0) + 1
   })
-  const topWp = Object.entries(wpCount).sort((a, b) => b[1] - a[1]).slice(0, 4)
+  const topWp = Object.entries(wpCount).sort((a, b) => b[1] - a[1]).slice(0, 3)
   const wpMaxVal = topWp[0]?.[1] || 1
   const wpBarW = rightW - 80
 
@@ -1297,13 +1293,13 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   })
 
   // ═══ FOOTER PAGE 1 ═══
-  doc.setFillColor(15, 23, 42)
+  doc.setFillColor(r, g, b)
   doc.rect(0, ph - 14, pw, 14, "F")
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7)
-  doc.setTextColor(148, 163, 184)
+  doc.setTextColor(255, 255, 255)
   doc.text(`${COMPANY_CONFIG.name}  ·  Documento Confidencial  ·  ${COMPANY_CONFIG.systemName}`, pw / 2, ph - 5, { align: "center" })
-  doc.setTextColor(100, 116, 139)
+  doc.setTextColor(255, 255, 255, 180)
   doc.text("Página 1 de 2", pw - 18, ph - 5, { align: "right" })
 
   // ══════════════════════════════════════════
@@ -1312,10 +1308,8 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   doc.addPage()
 
   // Header bar
-  doc.setFillColor(15, 23, 42)
-  doc.rect(0, 0, pw, 28, "F")
   doc.setFillColor(r, g, b)
-  doc.rect(0, 28, pw, 2, "F")
+  doc.rect(0, 0, pw, 30, "F")
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(14)
@@ -1340,7 +1334,7 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
       m.returned_at ? "DEVOLUÇÃO" : "ENTREGA",
       m.workplace?.name || "Geral"
     ]),
-    headStyles: { fillColor: [30, 41, 59], fontStyle: "bold", fontSize: 7.5, cellPadding: 4 },
+    headStyles: { fillColor: [r, g, b], fontStyle: "bold", fontSize: 7.5, cellPadding: 4 },
     bodyStyles: { fontSize: 7, cellPadding: 3 },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
@@ -1369,13 +1363,13 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   })
 
   // Footer page 2
-  doc.setFillColor(15, 23, 42)
+  doc.setFillColor(r, g, b)
   doc.rect(0, ph - 14, pw, 14, "F")
   doc.setFont("helvetica", "normal")
   doc.setFontSize(7)
-  doc.setTextColor(148, 163, 184)
+  doc.setTextColor(255, 255, 255)
   doc.text(`${COMPANY_CONFIG.name}  ·  Documento Confidencial  ·  ${COMPANY_CONFIG.systemName}`, pw / 2, ph - 5, { align: "center" })
-  doc.setTextColor(100, 116, 139)
+  doc.setTextColor(255, 255, 255, 180)
   doc.text("Página 2 de 2", pw - 18, ph - 5, { align: "right" })
 
   doc.save(`Movimentacoes_Apresentacao_${format(new Date(), "yyyyMMdd")}.pdf`)
