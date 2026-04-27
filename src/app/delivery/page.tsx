@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import Image from "next/image"
 import SignatureCanvas from "react-signature-canvas"
-import { CheckCircle2, ExternalLink, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine, Link2, Plus, Trash2, Package, Calendar, Clock } from "lucide-react"
+import { CheckCircle2, ExternalLink, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine, Link2, Plus, Trash2, Package, Calendar, Clock, User } from "lucide-react"
 import { format, addDays } from "date-fns"
 import { api } from "@/services/api"
 import { Employee, PPE, Workplace, Delivery } from "@/types/database"
