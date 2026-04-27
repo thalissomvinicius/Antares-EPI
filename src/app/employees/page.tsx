@@ -14,8 +14,10 @@ import { COMPANY_CONFIG } from "@/config/company"
 import { generateNR06PDF } from "@/utils/pdfGenerator"
 import { formatCpf, isValidCpf } from "@/utils/cpf"
 import { toast } from "sonner"
+import { usePdfActionDialog } from "@/hooks/usePdfActionDialog"
 
 export default function EmployeesPage() {
+  const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [workplaces, setWorkplaces] = useState<Workplace[]>([])
   const [loading, setLoading] = useState(true)
@@ -299,7 +301,7 @@ export default function EmployeesPage() {
 
     try {
       setIsGeneratingPdf(true)
-      await generateNR06PDF({
+      const pdfBlob = await generateNR06PDF({
         employeeName: emp.full_name,
         employeeCpf: emp.cpf,
         employeeRole: emp.job_title,
@@ -323,6 +325,18 @@ export default function EmployeesPage() {
           authMethod: tstAuthMethod,
         }
       })
+
+      const safeEmployee = emp.full_name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+
+      openPdfDialog(pdfBlob, `Ficha_NR06_${safeEmployee}.pdf`, {
+        title: "Prontuario NR-06 pronto",
+        description: "Escolha se deseja visualizar a ficha em uma nova aba ou baixar o PDF agora.",
+      })
+
       setIsTstModalOpen(false)
     } catch (err) {
       console.error("Erro ao gerar PDF:", err)
@@ -978,6 +992,7 @@ export default function EmployeesPage() {
           </div>
         </div>
       )}
+      {pdfActionDialog}
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
-import { Users, AlertTriangle, Search, CheckCircle2, FileDown, Loader2, ArrowRightLeft, ShieldAlert, Fingerprint, PenLine } from "lucide-react"
+import { Users, AlertTriangle, Search, CheckCircle2, ExternalLink, FileDown, Loader2, ArrowRightLeft, ShieldAlert, Fingerprint, PenLine } from "lucide-react"
 import SignatureCanvas from "react-signature-canvas"
 import { format } from "date-fns"
 import { api } from "@/services/api"
@@ -36,6 +36,7 @@ export default function ReturnsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const [lastPdfUrl, setLastPdfUrl] = useState<string | null>(null)
+  const [lastPdfFileName, setLastPdfFileName] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -56,6 +57,14 @@ export default function ReturnsPage() {
     }
     loadData()
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (lastPdfUrl) {
+        window.URL.revokeObjectURL(lastPdfUrl)
+      }
+    }
+  }, [lastPdfUrl])
 
   const selectEmployee = async (emp: Employee) => {
     setSelectedEmployee(emp)
@@ -142,7 +151,21 @@ export default function ReturnsPage() {
         signatureBase64: signatureDataUrl,
       })
       
-      setLastPdfUrl(URL.createObjectURL(pdfBlob))
+      const safeEmployee = (selectedEmployee.full_name || "Baixa")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+      const fileName = `Recibo_Baixa_${safeEmployee}_${format(new Date(), "ddMMyyyy")}.pdf`
+      const pdfUrl = URL.createObjectURL(pdfBlob)
+
+      setLastPdfUrl((prev) => {
+        if (prev) {
+          window.URL.revokeObjectURL(prev)
+        }
+        return pdfUrl
+      })
+      setLastPdfFileName(fileName)
       setIsSaved(true)
 
     } catch (err) {
@@ -165,12 +188,20 @@ export default function ReturnsPage() {
       <div className="flex flex-col items-center justify-center h-[70vh] text-center animate-in zoom-in">
         <CheckCircle2 className="w-20 h-20 text-green-500 mb-4" />
         <h2 className="text-2xl font-black text-slate-800 uppercase">Processo Concluído</h2>
+        <p className="text-slate-400 text-xs font-medium mb-2">Escolha se deseja visualizar ou baixar o recibo em PDF.</p>
         <p className="text-slate-500 mb-8">Baixa e/ou substituição registrada com sucesso.</p>
         
-        <div className="flex gap-4">
-          <a href={lastPdfUrl!} target="_blank" download="recibo_baixa.pdf" className="bg-[#8B1A1A] text-white px-6 py-3 rounded-xl font-bold flex items-center">
-            <FileDown className="w-5 h-5 mr-2" /> Baixar Recibo
-          </a>
+        <div className="flex flex-col sm:flex-row gap-4">
+          {lastPdfUrl && (
+            <>
+              <a href={lastPdfUrl} target="_blank" rel="noopener noreferrer" className="border border-slate-200 bg-white text-slate-700 px-6 py-3 rounded-xl font-bold flex items-center justify-center">
+                <ExternalLink className="w-5 h-5 mr-2 text-[#8B1A1A]" /> Visualizar PDF
+              </a>
+              <a href={lastPdfUrl} download={lastPdfFileName || "recibo_baixa.pdf"} className="bg-[#8B1A1A] text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center">
+                <FileDown className="w-5 h-5 mr-2" /> Baixar PDF
+              </a>
+            </>
+          )}
           <button onClick={() => { setIsSaved(false); setDeliveryToReturn(null); selectEmployee(selectedEmployee!); }} className="border border-slate-200 px-6 py-3 rounded-xl font-bold">
             Nova Baixa
           </button>

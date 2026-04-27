@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import Image from "next/image"
 import SignatureCanvas from "react-signature-canvas"
-import { CheckCircle2, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine, Link2, Plus, Trash2, Package, Calendar, Clock } from "lucide-react"
+import { CheckCircle2, ExternalLink, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine, Link2, Plus, Trash2, Package, Calendar, Clock } from "lucide-react"
 import { format, addDays } from "date-fns"
 import { api } from "@/services/api"
 import { Employee, PPE, Workplace, Delivery } from "@/types/database"
@@ -28,6 +28,7 @@ export default function DeliveryPage() {
   
   const [isSaved, setIsSaved] = useState(false)
   const [lastPdfUrl, setLastPdfUrl] = useState<string | null>(null)
+  const [lastPdfFileName, setLastPdfFileName] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   // Metadados de Autenticidade
@@ -106,6 +107,14 @@ export default function DeliveryPage() {
 
     loadOptions()
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (lastPdfUrl) {
+        window.URL.revokeObjectURL(lastPdfUrl)
+      }
+    }
+  }, [lastPdfUrl])
 
   const selectedEmployee = employees.find(e => e.id === selectedEmployeeId)
   const currentPpe = ppes.find(p => p.id === currentPpeId)
@@ -239,15 +248,14 @@ export default function DeliveryPage() {
       const fileName = `Comprovante_${shortId}_${safeName}_${itemCount}.pdf`
       
       const pdfUrl = URL.createObjectURL(pdfBlob)
-      setLastPdfUrl(pdfUrl)
+      setLastPdfUrl((prev) => {
+        if (prev) {
+          window.URL.revokeObjectURL(prev)
+        }
+        return pdfUrl
+      })
+      setLastPdfFileName(fileName)
       setIsSaved(true)
-
-      const link = document.createElement('a')
-      link.href = pdfUrl
-      link.setAttribute('download', fileName)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
 
       toast.success(`Entrega de ${cart.length} EPI(s) registrada com sucesso!`)
     } catch (err) {
@@ -316,22 +324,33 @@ export default function DeliveryPage() {
           <CheckCircle2 className="w-16 h-16" />
         </div>
         <h2 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tighter italic">Comprovante Digital Gerado</h2>
+        <p className="mt-2 text-xs font-medium text-slate-400">Escolha se deseja apenas visualizar o PDF ou baixa-lo agora.</p>
         <p className="text-slate-500 max-w-md italic text-sm">{cart.length} EPI(s) registrado(s) • IP {ipAddress || '...'}</p>
         
         <div className="mt-8 flex flex-col sm:flex-row gap-4">
           {lastPdfUrl && (
-            <a 
-              href={lastPdfUrl}
-              target="_blank"
-              download={`ficha_epi_${COMPANY_CONFIG.shortName.toLowerCase()}.pdf`}
-              className="px-8 py-4 bg-[#8B1A1A] hover:bg-[#681313] text-white rounded-xl font-bold transition-all shadow-lg shadow-red-900/10 flex items-center justify-center border-b-4 border-red-900"
-            >
-              <FileDown className="w-5 h-5 mr-3" />
-              Baixar Ficha NR-06
-            </a>
+            <>
+              <a
+                href={lastPdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 rounded-xl font-bold transition-all border border-slate-200 shadow-sm flex items-center justify-center"
+              >
+                <ExternalLink className="w-5 h-5 mr-3 text-[#8B1A1A]" />
+                Visualizar PDF
+              </a>
+              <a
+                href={lastPdfUrl}
+                download={lastPdfFileName || `ficha_epi_${COMPANY_CONFIG.shortName.toLowerCase()}.pdf`}
+                className="px-8 py-4 bg-[#8B1A1A] hover:bg-[#681313] text-white rounded-xl font-bold transition-all shadow-lg shadow-red-900/10 flex items-center justify-center border-b-4 border-red-900"
+              >
+                <FileDown className="w-5 h-5 mr-3" />
+                Baixar PDF
+              </a>
+            </>
           )}
           <button 
-            onClick={() => { setIsSaved(false); setStep(1); setLastPdfUrl(null); setCart([]); }}
+            onClick={() => { setIsSaved(false); setStep(1); setLastPdfUrl(null); setLastPdfFileName(null); setCart([]); }}
             className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-all border border-slate-200 shadow-sm"
           >
             Nova Entrega

@@ -10,8 +10,10 @@ import { useRef } from "react"
 import SignatureCanvas from "react-signature-canvas"
 import { FaceCamera } from "@/components/ui/FaceCamera"
 import { generateTrainingCertificate } from "@/utils/pdfGenerator"
+import { usePdfActionDialog } from "@/hooks/usePdfActionDialog"
 
 export default function TrainingPage() {
+  const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
   const [trainings, setTrainings] = useState<TrainingWithRelations[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
@@ -118,7 +120,7 @@ export default function TrainingPage() {
       })
 
       const trainedEmployee = employees.find(emp => emp.id === formData.employee_id)
-      generateTrainingCertificate({
+      const pdfBlob = generateTrainingCertificate({
         employeeName: trainedEmployee?.full_name || "N/A",
         employeeCpf: trainedEmployee?.cpf || "N/A",
         trainingName: finalTrainingName,
@@ -127,6 +129,22 @@ export default function TrainingPage() {
         instructorName: tstSelectedEmployee.full_name,
         instructorRole: tstRole,
         signatureBase64: tstSignatureBase64,
+      })
+
+      const safeEmployee = (trainedEmployee?.full_name || "Certificado")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+      const safeTraining = finalTrainingName
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+
+      openPdfDialog(pdfBlob, `Certificado_${safeEmployee}_${safeTraining}.pdf`, {
+        title: "Certificado pronto",
+        description: "Escolha se deseja visualizar o certificado em uma nova aba ou baixar o PDF agora.",
       })
 
       await loadData()
@@ -183,7 +201,7 @@ export default function TrainingPage() {
   }
 
   const downloadCertificate = (rec: TrainingWithRelations) => {
-    generateTrainingCertificate({
+    const pdfBlob = generateTrainingCertificate({
       employeeName: rec.employee?.full_name || "N/A",
       employeeCpf: rec.employee?.cpf || "N/A",
       trainingName: rec.training_name,
@@ -192,6 +210,22 @@ export default function TrainingPage() {
       instructorName: rec.instructor_name || "N/A",
       instructorRole: rec.instructor_role || "Técnico de Segurança",
       signatureBase64: rec.signature_url || undefined
+    })
+
+    const safeEmployee = (rec.employee?.full_name || "Certificado")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+    const safeTraining = rec.training_name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+
+    openPdfDialog(pdfBlob, `Certificado_${safeEmployee}_${safeTraining}.pdf`, {
+      title: "Certificado pronto",
+      description: "Escolha se deseja visualizar o certificado em uma nova aba ou baixar o PDF agora.",
     })
   }
 
@@ -585,6 +619,7 @@ export default function TrainingPage() {
           </div>
         </div>
       )}
+      {pdfActionDialog}
     </div>
   )
 }

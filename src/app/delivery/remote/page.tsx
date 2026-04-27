@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, Suspense, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import SignatureCanvas from "react-signature-canvas"
-import { FileDown, Loader2, ShieldAlert, Fingerprint, PenLine, ShieldCheck, UserCheck, Lock } from "lucide-react"
+import { ExternalLink, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine, ShieldCheck, UserCheck, Lock } from "lucide-react"
 import { api } from "@/services/api"
 import { Employee, PPE, Workplace } from "@/types/database"
 import { FaceCamera } from "@/components/ui/FaceCamera"
@@ -43,6 +43,7 @@ function RemoteDeliveryContent() {
   const [authMethod, setAuthMethod] = useState<'manual' | 'facial'>('manual')
   const [isSaving, setIsSaving] = useState(false)
   const [lastPdfUrl, setLastPdfUrl] = useState<string | null>(null)
+  const [lastPdfFileName, setLastPdfFileName] = useState<string | null>(null)
 
   // ── Metadata ──
   const [ipAddress, setIpAddress] = useState("")
@@ -53,6 +54,14 @@ function RemoteDeliveryContent() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [phase, authMethod])
+
+  useEffect(() => {
+    return () => {
+      if (lastPdfUrl) {
+        window.URL.revokeObjectURL(lastPdfUrl)
+      }
+    }
+  }, [lastPdfUrl])
 
   // ── Load delivery data on mount ──
   useEffect(() => {
@@ -224,15 +233,13 @@ function RemoteDeliveryContent() {
       const fileName = `Comprovante_${shortId}_${safeName}_${safePpe}.pdf`
 
       const pdfUrl = URL.createObjectURL(pdfBlob)
-      setLastPdfUrl(pdfUrl)
-      
-      // Auto-download
-      const link = document.createElement('a')
-      link.href = pdfUrl
-      link.setAttribute('download', fileName)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
+      setLastPdfUrl((prev) => {
+        if (prev) {
+          window.URL.revokeObjectURL(prev)
+        }
+        return pdfUrl
+      })
+      setLastPdfFileName(fileName)
 
       toast.success("Assinatura salva e comprovante gerado!")
       setPhase('done')
@@ -275,12 +282,18 @@ function RemoteDeliveryContent() {
         <ShieldCheck className="w-16 h-16" />
       </div>
       <h2 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tighter">Assinatura Confirmada</h2>
+      <p className="text-slate-400 text-xs font-medium mb-2">Escolha se deseja visualizar o PDF em uma nova aba ou baixa-lo agora.</p>
       <p className="text-slate-500 max-w-md italic text-sm">O comprovante foi registrado e está disponível para download.</p>
       <div className="mt-8 flex flex-col gap-4 w-full max-w-xs">
         {lastPdfUrl && (
-          <a href={lastPdfUrl} target="_blank" download="comprovante_antares.pdf" className="px-8 py-4 bg-[#8B1A1A] text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">
-            <FileDown className="w-5 h-5" /> Baixar Comprovante
-          </a>
+          <>
+            <a href={lastPdfUrl} target="_blank" rel="noopener noreferrer" className="px-8 py-4 border border-slate-200 bg-white text-slate-700 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2">
+              <ExternalLink className="w-5 h-5 text-[#8B1A1A]" /> Visualizar PDF
+            </a>
+            <a href={lastPdfUrl} download={lastPdfFileName || "comprovante_antares.pdf"} className="px-8 py-4 bg-[#8B1A1A] text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">
+              <FileDown className="w-5 h-5" /> Baixar PDF
+            </a>
+          </>
         )}
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pode fechar esta janela.</p>
       </div>

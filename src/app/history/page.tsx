@@ -5,9 +5,11 @@ import { History, ShieldCheck, Search, Loader2, FileDown } from "lucide-react"
 import { api } from "@/services/api"
 import { DeliveryWithRelations } from "@/types/database"
 import { generateDeliveryPDF } from "@/utils/pdfGenerator"
+import { usePdfActionDialog } from "@/hooks/usePdfActionDialog"
 import { toast } from "sonner"
 
 export default function HistoryPage() {
+  const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
   const [records, setRecords] = useState<DeliveryWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
@@ -69,15 +71,11 @@ export default function HistoryPage() {
       const safePpe = (rec.ppe?.name || "EPI").split(' ')[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       const fileName = `Comprovante_${shortId}_${safeName}_${safePpe}.pdf`
 
-      // 4. Download do arquivo
-      const url = window.URL.createObjectURL(pdfBlob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', fileName)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      
+      openPdfDialog(pdfBlob, fileName, {
+        title: "Comprovante pronto",
+        description: "Visualize o comprovante em uma nova aba ou baixe o PDF completo.",
+      })
+
       toast.success(`PDF gerado: ${fileName}`)
     } catch (err) {
       console.error("Erro ao gerar PDF:", err)
@@ -191,6 +189,7 @@ export default function HistoryPage() {
           )}
         </div>
       </div>
+      {pdfActionDialog}
     </div>
   )
 }

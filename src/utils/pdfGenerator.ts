@@ -501,7 +501,7 @@ export interface NR06PDFData {
   }
 }
 
-export async function generateNR06PDF(data: NR06PDFData): Promise<void> {
+export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
   const doc = new jsPDF({ format: "a4" })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -684,7 +684,7 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<void> {
   doc.text(`Documento emitido em ${emitDate} pelo ${COMPANY_CONFIG.systemName}.`, 14, footerY + 2)
   doc.text(`${COMPANY_CONFIG.systemName} • NR-06 Compliance • Identidade Digital Verificada`, 14, footerY + 6)
 
-  doc.save(`Ficha_NR06_${data.employeeName.replace(/\s+/g, '_')}.pdf`)
+  return doc.output("blob")
 }
 
 // ─────────────────────────────────────────────
@@ -697,7 +697,7 @@ export interface ReportPDFData {
   periodTitle?: string
 }
 
-export function generateGeneralReportPDF(data: ReportPDFData) {
+export function generateGeneralReportPDF(data: ReportPDFData): Blob {
   const doc = new jsPDF({ format: "a4" })
   const pageWidth = doc.internal.pageSize.getWidth()
 
@@ -772,7 +772,7 @@ export function generateGeneralReportPDF(data: ReportPDFData) {
   doc.text(`Relatório gerado em ${emitDate} pelo sistema.`, 14, finalY + 10)
 
   addPageFooter(doc)
-  doc.save(`Relatorio_Global_EPIs_${format(new Date(), "yyyyMMdd")}.pdf`)
+  return doc.output("blob")
 }
 
 export interface TrainingCertificateData {
@@ -786,7 +786,7 @@ export interface TrainingCertificateData {
   signatureBase64?: string
 }
 
-export function generateTrainingCertificate(data: TrainingCertificateData): void {
+export function generateTrainingCertificate(data: TrainingCertificateData): Blob {
   const doc = new jsPDF({ orientation: "landscape", format: "a4" })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -919,5 +919,5 @@ export function generateTrainingCertificate(data: TrainingCertificateData): void
   const issuedAt = format(new Date(), "dd/MM/yyyy '\u00e0s' HH:mm")
   doc.text(`Documento emitido digitalmente em ${issuedAt} via ${COMPANY_CONFIG.systemName}`, 20, pageHeight - 12)
 
-  doc.save(`Certificado_${data.employeeName.replace(/\s+/g, "_")}_${data.trainingName.replace(/\s+/g, "_")}.pdf`)
+  return doc.output("blob")
 }

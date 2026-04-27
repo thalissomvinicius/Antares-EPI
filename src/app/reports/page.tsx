@@ -10,10 +10,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { exportDeliveriesToExcel } from "@/utils/excelExporter"
 import { generateGeneralReportPDF } from "@/utils/pdfGenerator"
 import { DeliveryWithRelations, PPE, Training, Workplace } from "@/types/database"
+import { usePdfActionDialog } from "@/hooks/usePdfActionDialog"
 
 type DateFilter = 'all' | 'month' | 'last30' | 'last60' | 'last90' | 'custom' | 'specific_month'
 
 export default function ReportsPage() {
+  const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -205,10 +207,21 @@ export default function ReportsPage() {
     if (dateFilter === 'custom') periodTitle = `Período: ${customStartDate} a ${customEndDate}`
     if (dateFilter === 'specific_month') periodTitle = `Mês Específico: ${specificMonth}`
 
-    generateGeneralReportPDF({
+    const pdfBlob = generateGeneralReportPDF({
       stats,
       deliveries: allDeliveries,
       periodTitle: periodTitle
+    })
+
+    const safePeriod = periodTitle
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+
+    openPdfDialog(pdfBlob, `Relatorio_Global_EPIs_${safePeriod || "Geral"}.pdf`, {
+      title: "Relatorio gerencial pronto",
+      description: "Escolha se deseja abrir o relatorio em uma nova aba ou baixar o PDF agora.",
     })
   }
 
@@ -449,6 +462,7 @@ export default function ReportsPage() {
             </button>
         </div>
       </div>
+      {pdfActionDialog}
     </div>
   )
 }
