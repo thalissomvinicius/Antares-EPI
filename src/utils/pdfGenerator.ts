@@ -1194,102 +1194,123 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   // ── RIGHT COLUMN: Split into two cards ──
   const rightX = 18 + leftW + 10
   const rightW = pw - rightX - 18
-  const topCardH = (chartsH - 8) * 0.45
+
+  // ── Fixed card heights based on content, not ratio ──
+  // TOP card content: title(12) + line(3) + gap(6) + bar(14) + gap(8) + legend(8) + padding(9) = 60
+  const topCardH = 62
   const bottomCardH = chartsH - topCardH - 8
 
-  // -- TOP RIGHT: Entregas vs Devoluções --
+  // ── TOP RIGHT: Entregas vs Devoluções ──
   drawCard(doc, rightX, chartsY, rightW, topCardH)
+
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(9)
+  doc.setFontSize(8)
   doc.setTextColor(30, 41, 59)
-  doc.text("DISTRIBUIÇÃO: ENTREGAS vs DEVOLUÇÕES", rightX + 6, chartsY + 12)
+  doc.text("DISTRIBUIÇÃO: ENTREGAS vs DEVOLUÇÕES", rightX + 6, chartsY + 11)
   doc.setDrawColor(241, 245, 249)
-  doc.line(rightX + 6, chartsY + 15, rightX + rightW - 6, chartsY + 15)
+  doc.setLineWidth(0.3)
+  doc.line(rightX + 6, chartsY + 14, rightX + rightW - 6, chartsY + 14)
 
   const total = data.stats.deliveries + data.stats.returns
   if (total > 0) {
     const delivPct = data.stats.deliveries / total
     const retPct = data.stats.returns / total
-    const stackW = rightW - 24
-    const stackY = chartsY + 24
-    const stackH = 18
+    const stackW = rightW - 20  // 10px padding each side
+    const stackBarY = chartsY + 20
+    const stackBarH = 14
 
-    // Stacked horizontal bar
+    // Blue (Entregas) segment
     const delivW = stackW * delivPct
     const retW = stackW * retPct
-    doc.setFillColor(37, 99, 235)
-    doc.roundedRect(rightX + 12, stackY, delivW > 2 ? delivW : 2, stackH, 3, 3, "F")
+    if (delivW > 2) {
+      doc.setFillColor(37, 99, 235)
+      doc.roundedRect(rightX + 10, stackBarY, delivW, stackBarH, 2, 2, "F")
+    }
+    // Orange (Devoluções) segment
     if (retW > 2) {
       doc.setFillColor(217, 119, 6)
-      doc.roundedRect(rightX + 12 + delivW, stackY, retW, stackH, 3, 3, "F")
+      doc.roundedRect(rightX + 10 + delivW, stackBarY, retW, stackBarH, 2, 2, "F")
     }
 
-    // Percentage labels inside bars
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(9)
-    doc.setTextColor(255, 255, 255)
-    if (delivW > 25) doc.text(`${Math.round(delivPct * 100)}%`, rightX + 12 + delivW / 2, stackY + 12, { align: "center" })
-    if (retW > 25) doc.text(`${Math.round(retPct * 100)}%`, rightX + 12 + delivW + retW / 2, stackY + 12, { align: "center" })
-
-    // Legend below
-    const legendY = stackY + stackH + 10
-    doc.setFillColor(37, 99, 235)
-    doc.roundedRect(rightX + 12, legendY, 8, 8, 2, 2, "F")
+    // Percentage labels inside bars (white text)
     doc.setFont("helvetica", "bold")
     doc.setFontSize(8)
-    doc.setTextColor(30, 41, 59)
-    doc.text(`Entregas: ${data.stats.deliveries}`, rightX + 24, legendY + 6)
+    doc.setTextColor(255, 255, 255)
+    if (delivW > 20) doc.text(`${Math.round(delivPct * 100)}%`, rightX + 10 + delivW / 2, stackBarY + 10, { align: "center" })
+    if (retW > 20) doc.text(`${Math.round(retPct * 100)}%`, rightX + 10 + delivW + retW / 2, stackBarY + 10, { align: "center" })
 
+    // Legend — two items side by side, each half width
+    const legY = stackBarY + stackBarH + 8
+    const halfW = (rightW - 20) / 2
+
+    // Entregas legend
+    doc.setFillColor(37, 99, 235)
+    doc.roundedRect(rightX + 10, legY, 7, 7, 1, 1, "F")
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7.5)
+    doc.setTextColor(30, 41, 59)
+    doc.text(`Entregas: ${data.stats.deliveries}`, rightX + 20, legY + 5.5)
+
+    // Devoluções legend
     doc.setFillColor(217, 119, 6)
-    doc.roundedRect(rightX + 12 + rightW / 2, legendY, 8, 8, 2, 2, "F")
-    doc.text(`Devoluções: ${data.stats.returns}`, rightX + 24 + rightW / 2, legendY + 6)
+    doc.roundedRect(rightX + 10 + halfW, legY, 7, 7, 1, 1, "F")
+    doc.text(`Devoluções: ${data.stats.returns}`, rightX + 20 + halfW, legY + 5.5)
   } else {
     doc.setFont("helvetica", "italic")
-    doc.setFontSize(9)
+    doc.setFontSize(8)
     doc.setTextColor(148, 163, 184)
-    doc.text("Sem dados", rightX + rightW / 2, chartsY + topCardH / 2, { align: "center" })
+    doc.text("Sem dados para exibir", rightX + rightW / 2, chartsY + topCardH / 2, { align: "center" })
   }
 
-  // -- BOTTOM RIGHT: Movimentações por Unidade --
+  // ── BOTTOM RIGHT: Movimentações por Unidade ──
   const botY = chartsY + topCardH + 8
   drawCard(doc, rightX, botY, rightW, bottomCardH)
+
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(9)
+  doc.setFontSize(8)
   doc.setTextColor(30, 41, 59)
-  doc.text("MOVIMENTAÇÕES POR UNIDADE", rightX + 6, botY + 12)
+  doc.text("MOVIMENTAÇÕES POR UNIDADE", rightX + 6, botY + 11)
   doc.setDrawColor(241, 245, 249)
-  doc.line(rightX + 6, botY + 15, rightX + rightW - 6, botY + 15)
+  doc.setLineWidth(0.3)
+  doc.line(rightX + 6, botY + 14, rightX + rightW - 6, botY + 14)
 
   const wpCount: Record<string, number> = {}
   data.movements.forEach(m => {
     const wp = m.workplace?.name || "Geral"
     wpCount[wp] = (wpCount[wp] || 0) + 1
   })
-  const topWp = Object.entries(wpCount).sort((a, b) => b[1] - a[1]).slice(0, 3)
+
+  // Limit items so they fit: bottomCardH - 20 (header) / 11 (row height) = max rows
+  const maxWpRows = Math.max(1, Math.floor((bottomCardH - 22) / 11))
+  const topWp = Object.entries(wpCount).sort((a, b) => b[1] - a[1]).slice(0, Math.min(maxWpRows, 5))
   const wpMaxVal = topWp[0]?.[1] || 1
-  const wpBarW = rightW - 80
+  const labelW = 50
+  const wpBarW = rightW - labelW - 24  // 12px left + labelW + 12px right
 
   topWp.forEach(([wp, count], i) => {
-    const y = botY + 20 + i * 10
+    const rowY = botY + 20 + i * 11
     const filledW = (count / wpMaxVal) * wpBarW
 
+    // Label
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7)
     doc.setTextColor(71, 85, 105)
-    const wpLabel = wp.length > 16 ? wp.slice(0, 16) + "…" : wp
-    doc.text(wpLabel, rightX + 10, y + 4)
+    const wpLabel = wp.length > 14 ? wp.slice(0, 14) + "…" : wp
+    doc.text(wpLabel, rightX + 8, rowY + 5.5)
 
+    // Track
     doc.setFillColor(241, 245, 249)
-    doc.roundedRect(rightX + 55, y, wpBarW, 7, 2, 2, "F")
+    doc.roundedRect(rightX + 8 + labelW, rowY, wpBarW, 8, 2, 2, "F")
+    // Filled
     if (filledW > 0) {
       doc.setFillColor(5, 150, 105)
-      doc.roundedRect(rightX + 55, y, filledW, 7, 2, 2, "F")
+      doc.roundedRect(rightX + 8 + labelW, rowY, filledW, 8, 2, 2, "F")
     }
-
+    // Count to the right of the bar
     doc.setFont("helvetica", "bold")
     doc.setFontSize(7)
     doc.setTextColor(5, 150, 105)
-    doc.text(String(count), rightX + 57 + filledW + 2, y + 5.5)
+    doc.text(String(count), rightX + 10 + labelW + wpBarW + 2, rowY + 5.5)
   })
 
   // ═══ FOOTER PAGE 1 ═══
