@@ -758,25 +758,30 @@ export interface TrainingCertificateData {
   instructorName?: string
   instructorRole?: string
   signatureBase64?: string
+  programContent?: string[]
+  validationCode?: string
 }
 
 export async function generateTrainingCertificate(data: TrainingCertificateData): Promise<Blob> {
   const doc = new jsPDF({ orientation: "landscape", format: "a4" })
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
+  const pageWidth = doc.internal.pageSize.getWidth() // 297
+  const pageHeight = doc.internal.pageSize.getHeight() // 210
   const centerX = pageWidth / 2
 
-  doc.setFillColor(248, 250, 252)
-  doc.rect(0, 0, pageWidth, pageHeight, "F")
+  const drawBorders = () => {
+    // Outer border: 6px solid #8B0000 -> 6px is ~2.1mm
+    doc.setDrawColor(139, 0, 0)
+    doc.setLineWidth(2.1)
+    doc.rect(10, 10, pageWidth - 20, pageHeight - 20)
+    // Inner border: 1.5px solid #8B0000 -> 1.5px is ~0.5mm
+    doc.setLineWidth(0.5)
+    doc.rect(13.5, 13.5, pageWidth - 27, pageHeight - 27)
+  }
 
-  doc.setDrawColor(r, g, b)
-  doc.setLineWidth(2)
-  doc.rect(16, 16, pageWidth - 32, pageHeight - 32)
-
-  doc.setDrawColor(226, 232, 240)
-  doc.setLineWidth(0.5)
-  doc.rect(20, 20, pageWidth - 40, pageHeight - 40)
-
+  // --- PAGE 1: FRENTE ---
+  drawBorders()
+  
+  // Header: Logo on left, title in center, photo on right
   let logoBase64: string | null = null;
   try {
     const logoRes = await fetch('/logo.png');
@@ -790,64 +795,78 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
     console.error("Could not load logo.png", e);
   }
 
+  const marginX = 25; // 30px padding from border ~ 10mm + 13.5mm = ~23.5mm
+
   if (logoBase64) {
     try {
-      const imgWidth = 40;
-      const imgHeight = 30;
-      doc.addImage(logoBase64, "PNG", centerX - imgWidth / 2, 24, imgWidth, imgHeight);
-    } catch {
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(24)
-      doc.setTextColor(r, g, b)
-      doc.text(COMPANY_CONFIG.name, centerX, 38, { align: "center" })
-    }
-  } else if (COMPANY_CONFIG.logoUrl) {
-    try {
-      const imgWidth = 40
-      const imgHeight = 15
-      doc.addImage(COMPANY_CONFIG.logoUrl, "PNG", centerX - imgWidth / 2, 26, imgWidth, imgHeight)
-    } catch {
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(24)
-      doc.setTextColor(r, g, b)
-      doc.text(COMPANY_CONFIG.name, centerX, 38, { align: "center" })
-    }
-  } else {
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(24)
-    doc.setTextColor(r, g, b)
-    doc.text(COMPANY_CONFIG.name, centerX, 38, { align: "center" })
+      // 90px height -> ~31.5mm
+      const imgHeight = 31.5;
+      const imgWidth = 42; // approx 4:3
+      doc.addImage(logoBase64, "PNG", marginX, 25, imgWidth, imgHeight);
+    } catch { }
   }
 
   doc.setFont("times", "bold")
-  doc.setFontSize(36)
-  doc.setTextColor(30, 41, 59)
-  doc.text("CERTIFICADO DE CONCLUSÃO", centerX, 62, { align: "center" })
-
-  doc.setFont("helvetica", "italic")
-  doc.setFontSize(10)
-  doc.setTextColor(102, 102, 102)
-  doc.text("Certificamos para os devidos fins que", centerX, 76, { align: "center" })
-
-  doc.setFont("times", "bolditalic")
   doc.setFontSize(28)
-  doc.setTextColor(r, g, b)
-  doc.text(data.employeeName.toUpperCase(), centerX, 96, { align: "center" })
+  doc.setTextColor(26, 26, 46) // #1a1a2e
+  doc.text("CERTIFICADO DE CONCLUSÃO", centerX, 40, { align: "center" })
+
+  // Decorative line below title (220px ~ 77mm)
+  doc.setDrawColor(139, 0, 0)
+  doc.setLineWidth(0.7)
+  const lineW = 77
+  doc.line(centerX - lineW/2, 45, centerX + lineW/2, 45)
+
+  // Photo on right (60x75px ~ 21x26mm oval)
+  const photoW = 21;
+  const photoH = 26;
+  const photoX = pageWidth - marginX - photoW;
+  const photoY = 25;
+  
+  doc.setDrawColor(139, 0, 0)
+  doc.setLineWidth(0.7)
+  if (data.signatureBase64 && data.signatureBase64.startsWith('data:image/jpeg')) {
+    doc.roundedRect(photoX, photoY, photoW, photoH, 3, 3, "S")
+    doc.addImage(data.signatureBase64, "JPEG", photoX+1, photoY+1, photoW-2, photoH-2)
+  } else {
+    doc.ellipse(photoX + photoW/2, photoY + photoH/2, photoW/2, photoH/2, "S")
+  }
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+  doc.setTextColor(150, 150, 150)
+  doc.text("Resp. Técnico", photoX + photoW/2, photoY + photoH + 5, { align: "center" })
+
+  // Corpo Central
+  doc.setFont("helvetica", "italic")
+  doc.setFontSize(12)
+  doc.setTextColor(85, 85, 85) // #555555
+  doc.text("Certificamos para os devidos fins que", centerX, 70, { align: "center" })
+
+  doc.setFont("times", "bold")
+  doc.setFontSize(24)
+  doc.setTextColor(139, 0, 0) // #8B0000
+  doc.text(data.employeeName.toUpperCase(), centerX, 85, { align: "center" })
 
   doc.setFont("helvetica", "normal")
-  doc.setFontSize(12)
-  doc.setTextColor(71, 85, 105)
-  doc.text(`Portador(a) do CPF: ${data.employeeCpf}`, centerX, 108, { align: "center" })
+  doc.setFontSize(11)
+  doc.setTextColor(68, 68, 68) // #444444
+  doc.text(`Portador(a) do CPF: ${data.employeeCpf}`, centerX, 95, { align: "center" })
+
+  // Divisor ornamental
+  doc.setFont("times", "normal")
+  doc.setFontSize(14)
+  doc.setTextColor(139, 0, 0)
+  doc.text("— · —", centerX, 105, { align: "center" })
 
   doc.setFont("helvetica", "italic")
-  doc.setFontSize(10)
-  doc.setTextColor(102, 102, 102)
-  doc.text("concluiu com êxito o treinamento de", centerX, 126, { align: "center" })
+  doc.setFontSize(12)
+  doc.setTextColor(85, 85, 85)
+  doc.text("concluiu com êxito o treinamento de", centerX, 115, { align: "center" })
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(20)
-  doc.setTextColor(30, 41, 59)
-  doc.text(data.trainingName.toUpperCase(), centerX, 138, { align: "center" })
+  doc.setTextColor(26, 26, 46)
+  doc.text(data.trainingName.toUpperCase(), centerX, 127, { align: "center" })
 
   const getTrainingWorkload = (name: string): number => {
     const n = name.toLowerCase();
@@ -858,7 +877,7 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
     if (n.includes('nr-12') || n.includes('nr 12')) return 16;
     if (n.includes('nr-20') || n.includes('nr 20')) return 16;
     if (n.includes('nr-05') || n.includes('nr 05') || n.includes('cipa')) return 20;
-    return 4; // Carga horária mínima padrão
+    return 4;
   };
   const workload = getTrainingWorkload(data.trainingName);
 
@@ -866,68 +885,172 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
   const validUntilText = format(new Date(data.expiryDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
 
   doc.setFont("helvetica", "normal")
-  doc.setFontSize(12)
-  doc.setTextColor(71, 85, 105)
-  doc.text(`Realizado em: ${completionText}  |  Carga Horária: ${workload}h  |  Válido até: ${validUntilText}`, centerX, 150, { align: "center" })
+  doc.setFontSize(11)
+  doc.setTextColor(68, 68, 68)
+  doc.text(`Realizado em: ${completionText}  |  Carga Horária: ${workload}h  |  Válido até: ${validUntilText}`, centerX, 137, { align: "center" })
 
-  // ── Signer block: always anchored 55mm from page bottom so it never overflows ──
-  const signerBlockX = centerX - 40
-  const signerBlockWidth = 80
-  const imageTopY = pageHeight - 55
-  const separatorY = pageHeight - 32
-  const signerNameY = pageHeight - 25
-  const signerRoleY = pageHeight - 20
+  // Rodapé (3 cols)
+  const footerY = 165
+  
+  const code = data.validationCode || `CERT-${format(new Date(data.completionDate), "yyyy")}-${Math.floor(Math.random()*10000).toString().padStart(4, '0')}`;
+  const validationUrl = `https://sesmt.antaresempreendimentos.com.br/validar/${code}`;
+  
+  // Left: QR Code (70x70px ~ 25x25mm)
+  try {
+    const qrDataUrl = await QRCode.toDataURL(validationUrl, { width: 150, margin: 1 })
+    doc.addImage(qrDataUrl, 'PNG', marginX, footerY, 25, 25)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(8)
+    doc.setTextColor(119, 119, 119) // #777777
+    doc.text(`Valide em: ${validationUrl.replace('https://', '')}`, marginX + 12.5, footerY + 29, { align: "center" })
+  } catch {}
 
+  // Center: Signature
   if (data.instructorName) {
-    if (data.signatureBase64) {
+    const sigLineW = 63 // ~180px
+    doc.setDrawColor(139, 0, 0)
+    doc.setLineWidth(0.5)
+    doc.line(centerX - sigLineW/2, footerY + 20, centerX + sigLineW/2, footerY + 20)
+
+    if (data.signatureBase64 && !data.signatureBase64.startsWith('data:image/jpeg')) {
       try {
         const imgProps = doc.getImageProperties(data.signatureBase64)
         const ratio = imgProps.width / imgProps.height
-        const isPhoto = ratio <= 1.5
-        const maxW = isPhoto ? 18 : 50
-        const maxH = isPhoto ? 18 : 14
-        let drawW = maxW
-        let drawH = drawW / ratio
-
-        if (drawH > maxH) {
-          drawH = maxH
-          drawW = drawH * ratio
+        let drawH = 15; // ~45px
+        let drawW = drawH * ratio;
+        if (drawW > sigLineW) {
+          drawW = sigLineW;
+          drawH = drawW / ratio;
         }
-
-        const sigX = centerX - drawW / 2
-        const sigY = imageTopY
-        const fmt = data.signatureBase64.startsWith("data:image/png") ? "PNG" : "JPEG"
-
-        if (isPhoto) {
-          doc.setDrawColor(203, 213, 225)
-          doc.setFillColor(255, 255, 255)
-          doc.roundedRect(sigX - 2, sigY - 2, drawW + 4, drawH + 4, 2, 2, "FD")
-        }
-
-        doc.addImage(data.signatureBase64, fmt, sigX, sigY, drawW, drawH)
-      } catch { /* skip */ }
+        doc.addImage(data.signatureBase64, "PNG", centerX - drawW/2, footerY + 20 - drawH - 1, drawW, drawH)
+      } catch {}
     }
 
-    doc.setDrawColor(148, 163, 184)
-    doc.setLineWidth(0.5)
-    doc.line(signerBlockX, separatorY, signerBlockX + signerBlockWidth, separatorY)
-
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(10)
-    doc.setTextColor(30, 41, 59)
-    doc.text(data.instructorName.toUpperCase(), centerX, signerNameY, { align: "center" })
-
+    doc.setFontSize(11)
+    doc.setTextColor(85, 85, 85)
+    doc.text(data.instructorName.toUpperCase(), centerX, footerY + 25, { align: "center" })
+    
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(8)
-    doc.setTextColor(102, 102, 102)
-    doc.text(data.instructorRole || "Instrutor / Responsável Técnico", centerX, signerRoleY, { align: "center" })
+    doc.setFontSize(10)
+    doc.text(data.instructorRole || "Resp. Técnico", centerX, footerY + 30, { align: "center" })
   }
 
-  doc.setFontSize(8)
+  // Right: Footer text
+  const rightX = pageWidth - marginX;
   doc.setFont("helvetica", "italic")
-  doc.setTextColor(148, 163, 184)
-  const issuedAt = format(new Date(), "dd/MM/yyyy 'às' HH:mm")
-  doc.text(`Documento emitido digitalmente em ${issuedAt} via ${COMPANY_CONFIG.systemName}`, 20, pageHeight - 12)
+  doc.setFontSize(8)
+  doc.setTextColor(136, 136, 136) // #888888
+  const emitDate = format(new Date(), "dd/MM/yyyy")
+  const emitTime = format(new Date(), "HH:mm")
+  doc.text(`Documento emitido digitalmente em ${emitDate} às ${emitTime}`, rightX, footerY + 18, { align: "right" })
+  
+  doc.setFont("helvetica", "normal")
+  doc.text("via Sistema SESMT Digital", rightX, footerY + 22, { align: "right" })
+  
+  doc.setFont("helvetica", "bold")
+  doc.text(`Código: ${code}`, rightX, footerY + 26, { align: "right" })
+
+  // --- PAGE 2: VERSO ---
+  doc.addPage()
+  drawBorders()
+
+  // Cabeçalho Simplificado
+  if (logoBase64) {
+    try {
+      const imgHeight = 21; // ~60px
+      const imgWidth = 28;
+      doc.addImage(logoBase64, "PNG", marginX, 20, imgWidth, imgHeight);
+    } catch { }
+  }
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(18)
+  doc.setTextColor(26, 26, 46)
+  doc.text("CONTEÚDO PROGRAMÁTICO", centerX, 30, { align: "center" })
+
+  doc.setFont("helvetica", "italic")
+  doc.setFontSize(14)
+  doc.setTextColor(139, 0, 0)
+  doc.text(data.trainingName.toUpperCase(), centerX, 38, { align: "center" })
+
+  // Tabela de Conteúdo Programático
+  const content = data.programContent && data.programContent.length > 0 
+    ? data.programContent 
+    : [
+        "1. Normas e regulamentos de segurança.",
+        "2. Identificação de riscos e perigos.",
+        "3. Procedimentos operacionais padrão (POP).",
+        "4. Uso correto e guarda de EPIs.",
+        "5. Primeiros socorros e ações de emergência."
+      ];
+    
+  const tableData = [];
+  for (let i = 0; i < content.length; i += 2) {
+    tableData.push([
+      content[i] ? `   ${content[i]}` : "",
+      content[i+1] ? `   ${content[i+1]}` : ""
+    ]);
+  }
+
+  autoTable(doc, {
+    startY: 50,
+    body: tableData,
+    theme: 'plain',
+    styles: {
+      fontSize: 10,
+      font: "helvetica",
+      textColor: [85, 85, 85],
+      cellPadding: 4,
+    },
+    alternateRowStyles: {
+      fillColor: [250, 250, 250] // #fafafa
+    },
+    columnStyles: {
+      0: { cellWidth: (pageWidth - 2 * marginX) / 2 },
+      1: { cellWidth: (pageWidth - 2 * marginX) / 2 }
+    },
+    margin: { left: marginX, right: marginX },
+    didDrawCell: (hookData) => {
+      if (hookData.section === 'body' && hookData.cell.raw && typeof hookData.cell.raw === 'string' && hookData.cell.raw.trim().length > 0) {
+        // Draw small red bullet points
+        hookData.doc.setFillColor(139, 0, 0);
+        hookData.doc.circle(hookData.cell.x + 4, hookData.cell.y + hookData.cell.height/2, 1.2, "F");
+      }
+    }
+  })
+
+  // Informações Legais (Footer Verso)
+  const versoFooterY = pageHeight - 45;
+  
+  // Draw Box
+  doc.setFillColor(245, 245, 245) // #f5f5f5
+  doc.rect(marginX, versoFooterY, pageWidth - 2 * marginX - 40, 20, "F")
+  
+  // Left border of the box
+  doc.setDrawColor(139, 0, 0)
+  doc.setLineWidth(1.4) // 4px
+  doc.line(marginX, versoFooterY, marginX, versoFooterY + 20)
+
+  // Box text
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(10)
+  doc.setTextColor(85, 85, 85)
+  const nrNumberMatch = data.trainingName.match(/NR-?(\d+)/i);
+  const nrNumber = nrNumberMatch ? nrNumberMatch[1] : "06";
+  const legalText = `Este certificado é válido conforme NR-${nrNumber} e demais legislações vigentes.\nEmitido pelo SESMT da Antares Empreendimentos.`;
+  doc.text(legalText, marginX + 5, versoFooterY + 8)
+
+  // Right QR Code
+  try {
+    const qrDataUrl = await QRCode.toDataURL(validationUrl, { width: 100, margin: 1 })
+    doc.addImage(qrDataUrl, 'PNG', pageWidth - marginX - 25, versoFooterY, 25, 25)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7)
+    doc.setTextColor(85, 85, 85)
+    doc.text("Autenticidade verificável", pageWidth - marginX - 12.5, versoFooterY + 27, { align: "center" })
+    doc.text("pelo QR Code", pageWidth - marginX - 12.5, versoFooterY + 30, { align: "center" })
+  } catch {}
 
   return doc.output("blob")
 }
