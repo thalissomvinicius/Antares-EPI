@@ -858,6 +858,16 @@ export default function EmployeesPage() {
             {/* Step 2 — Capture Signature */}
             {tstStep === 2 && (
               <div className="p-6 space-y-4">
+                {/* Notice for Missing Photo */}
+                {!tstSelectedEmployee?.photo_url && !tstSignatureBase64 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-3 items-start">
+                    <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-amber-800 font-bold uppercase tracking-widest leading-relaxed">
+                      Este colaborador não possui foto pré-cadastrada. Você pode capturar uma foto agora (Foto Biométrica) ou fazer a assinatura na tela (Assinatura Manual).
+                    </p>
+                  </div>
+                )}
+
                 {/* Auth Method Toggle */}
                 <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
                   <button
