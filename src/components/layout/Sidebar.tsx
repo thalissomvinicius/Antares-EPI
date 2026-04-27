@@ -40,7 +40,7 @@ export function Sidebar() {
         <span className="text-[10px] text-slate-500 font-bold tracking-[0.3em] uppercase">Empreendimentos</span>
       </div>
       
-      <nav className="flex-1 py-6 px-3 space-y-1">
+      <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
         {filteredMenuItems.map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
