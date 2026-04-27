@@ -41,10 +41,10 @@ export type StockMovement = {
   quantity: number;
   type: 'ENTRADA' | 'SAIDA' | 'AJUSTE';
   motive: string | null;
+  created_by_id?: string | null;
+  created_by_name?: string | null;
   created_at?: string;
-  ppe?: {
-    name: string;
-  };
+  ppe?: { name: string };
 };
 
 export type Delivery = {

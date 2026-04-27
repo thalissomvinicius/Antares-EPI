@@ -7,8 +7,10 @@ import { PPE, StockMovement } from "@/types/database"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Skeleton } from "@/components/ui/Skeleton"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function InventoryPage() {
+  const { user } = useAuth()
   const [ppes, setPpes] = useState<PPE[]>([])
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +61,11 @@ export default function InventoryPage() {
       setIsSaving(true)
       setLoading(true)
       console.log('[Estoque] Enviando movimento:', formData)
-      const result = await api.addStockMovement(formData)
+      const result = await api.addStockMovement({
+        ...formData,
+        created_by_id: user?.id ?? null,
+        created_by_name: user?.user_metadata?.full_name || user?.email || 'Sistema'
+      })
       console.log('[Estoque] Movimento registrado com sucesso:', result)
       await loadData()
       setIsModalOpen(false)
@@ -196,9 +202,14 @@ export default function InventoryPage() {
                                 </span>
                             </div>
                             <p className="text-[10px] text-slate-500 italic leading-tight">{m.motive}</p>
-                            <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest mt-1">
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">
                                 {format(new Date(m.created_at || ""), "dd/MM/yyyy • HH:mm", { locale: ptBR })}
-                            </p>
+                              </p>
+                              {m.created_by_name && (
+                                <span className="text-[8px] text-slate-500 italic">· {m.created_by_name}</span>
+                              )}
+                            </div>
                         </div>
                     </div>
                 ))}

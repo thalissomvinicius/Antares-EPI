@@ -205,6 +205,17 @@ export const api = {
     return data[0] as Workplace;
   },
 
+  async deleteWorkplace(id: string) {
+    // Soft delete — preserves audit history
+    const { error } = await withSessionRetry(() =>
+      supabase
+        .from('workplaces')
+        .update({ active: false })
+        .eq('id', id)
+    );
+    if (error) throw error;
+  },
+
   // --- Colaboradores ---
   async getEmployees() {
     const { data, error } = await withSessionRetry(() =>
