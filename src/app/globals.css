@@ -123,6 +123,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* iOS Safari: push content above the home indicator bar */
+    padding-bottom: env(safe-area-inset-bottom);
   }
   html {
     @apply font-sans;
@@ -145,11 +147,10 @@
 }
 
 .face-camera-mirror {
-  transform: scaleX(-1);
+  /* Mirror handled via Tailwind scale-x-[-1] on the element */
 }
 
 .face-camera-video {
-  transform: scaleX(-1);
   min-height: 280px;
   max-height: 65vh;
 }

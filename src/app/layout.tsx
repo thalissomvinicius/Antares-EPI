@@ -12,7 +12,14 @@ const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "Antares Gestão | SESMT Digital",
