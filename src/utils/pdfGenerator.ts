@@ -490,10 +490,18 @@ export interface NR06PDFData {
     reason: string
     returnedAt?: string | null
     isExpired: boolean
+    signatureUrl?: string | null   // URL da assinatura/foto da entrega
+    signatureBase64?: string        // Base64 para embed direto no PDF
   }[]
+  tstSigner?: {
+    name: string
+    role: string
+    signatureBase64: string
+    authMethod: 'manual' | 'facial'
+  }
 }
 
-export function generateNR06PDF(data: NR06PDFData): void {
+export async function generateNR06PDF(data: NR06PDFData): Promise<void> {
   const doc = new jsPDF({ format: "a4" })
   const pageWidth = doc.internal.pageSize.getWidth()
 
@@ -517,39 +525,62 @@ export function generateNR06PDF(data: NR06PDFData): void {
     infoRow(doc, f.label, f.value, x, y)
   })
 
+  // ── Resolve all signatures to base64 before drawing ──
+  const itemsWithSigs = await Promise.all(
+    data.items.map(async (item) => {
+      if (item.signatureBase64) return item
+      if (item.signatureUrl) {
+        try {
+          const res = await fetch(item.signatureUrl)
+          const blob = await res.blob()
+          const b64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+          return { ...item, signatureBase64: b64 }
+        } catch { /* fallback: no sig */ }
+      }
+      return item
+    })
+  )
+
   const tableY = boxY + 38
   autoTable(doc, {
     startY: tableY,
-    head: [["Data Entrega", "EPI", "Nº C.A.", "Qtd", "Motivo", "Status", "Data Devolução"]],
-    body: data.items.map(item => [
+    head: [["Data", "EPI", "Nº C.A.", "Qtd", "Motivo", "Status", "Devolução", "Assinatura"]],
+    body: itemsWithSigs.map(item => [
       item.deliveryDate,
       item.ppeName,
       item.caNr,
       item.quantity,
       item.reason,
       item.returnedAt ? "Devolvido" : item.isExpired ? "⚠ Troca Pendente" : "Em uso",
-      item.returnedAt ? format(new Date(item.returnedAt), "dd/MM/yyyy") : "—"
+      item.returnedAt ? format(new Date(item.returnedAt), "dd/MM/yyyy") : "—",
+      "", // placeholder for signature image — drawn in didDrawCell
     ]),
     styles: {
-      fontSize: 7.5,
-      cellPadding: 4,
+      fontSize: 7,
+      cellPadding: 3,
       font: "helvetica",
       textColor: [30, 41, 59],
+      minCellHeight: 16,
     },
     headStyles: {
       fillColor: [r, g, b],
       textColor: [255, 255, 255],
       fontStyle: "bold",
-      fontSize: 7,
+      fontSize: 6.5,
       halign: "center",
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
-      0: { cellWidth: 22 },
-      2: { halign: "center", cellWidth: 16 },
-      3: { halign: "center", cellWidth: 10 },
+      0: { cellWidth: 18 },
+      2: { halign: "center", cellWidth: 14 },
+      3: { halign: "center", cellWidth: 8 },
       5: { halign: "center" },
-      6: { halign: "center", cellWidth: 24 },
+      6: { halign: "center", cellWidth: 20 },
+      7: { cellWidth: 22, halign: "center" },
     },
     willDrawCell: (hookData) => {
       if (hookData.section === 'body' && hookData.column.index === 5) {
@@ -558,16 +589,88 @@ export function generateNR06PDF(data: NR06PDFData): void {
         if (val === "Devolvido") hookData.cell.styles.textColor = [21, 128, 61]
       }
     },
+    didDrawCell: (hookData) => {
+      if (hookData.section === 'body' && hookData.column.index === 7) {
+        const rowIndex = hookData.row.index
+        const item = itemsWithSigs[rowIndex]
+        if (!item?.signatureBase64) return
+
+        const cell = hookData.cell
+        const maxW = cell.width - 4
+        const maxH = cell.height - 4
+        const x = cell.x + 2
+        const y = cell.y + 2
+
+        try {
+          const imgProps = doc.getImageProperties(item.signatureBase64)
+          const ratio = imgProps.width / imgProps.height
+          let drawW = maxW, drawH = maxW / ratio
+          if (drawH > maxH) { drawH = maxH; drawW = maxH * ratio }
+          const dx = x + (maxW - drawW) / 2
+          const dy = y + (maxH - drawH) / 2
+          const fmt = item.signatureBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG'
+          doc.addImage(item.signatureBase64, fmt, dx, dy, drawW, drawH)
+        } catch { /* skip if image fails */ }
+      }
+    },
     margin: { left: 14, right: 14 },
   })
 
   // @ts-expect-error - jsPDF-autotable adds lastAutoTable to doc
-  const finalY = doc.lastAutoTable?.finalY || 200
+  let finalY = doc.lastAutoTable?.finalY || 200
+  finalY += 12
+
+  // ── TST Signer Block ──
+  if (data.tstSigner) {
+    const tst = data.tstSigner
+    doc.setDrawColor(226, 232, 240)
+    doc.setFillColor(248, 250, 252)
+    doc.roundedRect(14, finalY, pageWidth - 28, 42, 3, 3, "FD")
+
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(7)
+    doc.setTextColor(71, 85, 105)
+    doc.text("ASSINATURA DO RESPONSÁVEL TÉCNICO DE SEGURANÇA (TST)", 20, finalY + 7)
+
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8.5)
+    doc.setTextColor(30, 41, 59)
+    doc.text(tst.name.toUpperCase(), 20, finalY + 14)
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7)
+    doc.setTextColor(100, 116, 139)
+    doc.text(tst.role, 20, finalY + 19)
+
+    // Signature image on the right
+    try {
+      const imgProps = doc.getImageProperties(tst.signatureBase64)
+      const ratio = imgProps.width / imgProps.height
+      const isPhoto = ratio <= 1.5
+      const drawH = isPhoto ? 28 : 14
+      const drawW = drawH * ratio
+      const sigX = pageWidth - 14 - drawW - 4
+      const sigY = finalY + 7
+      const fmt = tst.signatureBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG'
+      doc.addImage(tst.signatureBase64, fmt, sigX, sigY, drawW, drawH)
+    } catch { /* skip */ }
+
+    // Signature line below name for manual sig
+    doc.setDrawColor(226, 232, 240)
+    doc.setLineWidth(0.3)
+    doc.line(20, finalY + 34, pageWidth / 2 - 10, finalY + 34)
+    doc.setFontSize(6)
+    doc.setTextColor(148, 163, 184)
+    doc.text("Assinatura do Responsável Técnico", 20, finalY + 38)
+
+    finalY += 50
+  }
+
   const emitDate = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
   doc.setFontSize(7)
   doc.setFont("helvetica", "italic")
   doc.setTextColor(100, 116, 139)
-  doc.text(`Documento emitido em ${emitDate} pelo ${COMPANY_CONFIG.systemName}.`, 14, finalY + 10)
+  doc.text(`Documento emitido em ${emitDate} pelo ${COMPANY_CONFIG.systemName}.`, 14, finalY + 8)
 
   addPageFooter(doc)
   doc.save(`Ficha_NR06_${data.employeeName.replace(/\s+/g, '_')}.pdf`)
