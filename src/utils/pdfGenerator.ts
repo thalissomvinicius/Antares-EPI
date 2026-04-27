@@ -1092,13 +1092,13 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   // Subtitle
   doc.setFont("helvetica", "normal")
   doc.setFontSize(10)
-  doc.setTextColor(255, 255, 255, 180)
+  doc.setTextColor(255, 255, 255)
   doc.text(`Período: ${data.period}  ·  Emitido em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}`, 18, 44)
 
   // Right side - System badge
   doc.setFont("helvetica", "bold")
   doc.setFontSize(8)
-  doc.setTextColor(255, 255, 255, 150)
+  doc.setTextColor(255, 255, 255)
   doc.text(COMPANY_CONFIG.systemName.toUpperCase(), pw - 18, 44, { align: "right" })
 
   // ═══ KPI ROW ═══
@@ -1196,8 +1196,7 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   const rightW = pw - rightX - 18
 
   // ── Fixed card heights based on content, not ratio ──
-  // TOP card content: title(12) + line(3) + gap(6) + bar(14) + gap(8) + legend(8) + padding(9) = 60
-  const topCardH = 62
+  const topCardH = 50
   const bottomCardH = chartsH - topCardH - 8
 
   // ── TOP RIGHT: Entregas vs Devoluções ──
@@ -1320,7 +1319,7 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   doc.setFontSize(7)
   doc.setTextColor(255, 255, 255)
   doc.text(`${COMPANY_CONFIG.name}  ·  Documento Confidencial  ·  ${COMPANY_CONFIG.systemName}`, pw / 2, ph - 5, { align: "center" })
-  doc.setTextColor(255, 255, 255, 180)
+  doc.setTextColor(255, 255, 255)
   doc.text("Página 1 de 2", pw - 18, ph - 5, { align: "right" })
 
   // ══════════════════════════════════════════
@@ -1390,7 +1389,7 @@ export function generateMovementsPresentationPDF(data: MovementsReportData): voi
   doc.setFontSize(7)
   doc.setTextColor(255, 255, 255)
   doc.text(`${COMPANY_CONFIG.name}  ·  Documento Confidencial  ·  ${COMPANY_CONFIG.systemName}`, pw / 2, ph - 5, { align: "center" })
-  doc.setTextColor(255, 255, 255, 180)
+  doc.setTextColor(255, 255, 255)
   doc.text("Página 2 de 2", pw - 18, ph - 5, { align: "right" })
 
   doc.save(`Movimentacoes_Apresentacao_${format(new Date(), "yyyyMMdd")}.pdf`)
