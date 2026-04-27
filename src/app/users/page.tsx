@@ -123,7 +123,7 @@ export default function UsersPage() {
   }
 
   const openResetPasswordModal = (user: (Profile & { email: string, created_at: string, last_sign_in_at: string })) => {
-    setFormData({ id: user.id, full_name: user.full_name, email: user.email, password: "", role: user.role })
+    setFormData({ id: user.id, full_name: user.full_name, email: user.email, password: "", role: user.role ?? "ALMOXARIFE" })
     setIsModalOpen(true)
   }
 
