@@ -50,20 +50,26 @@ export default function InventoryPage() {
 
   const handleAddMovement = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.ppe_id || formData.quantity <= 0) return
+    if (!formData.ppe_id || formData.quantity <= 0) {
+      console.warn('[Estoque] Formulário inválido:', formData)
+      return
+    }
 
     try {
       setIsSaving(true)
       setLoading(true)
-      await api.addStockMovement(formData)
+      console.log('[Estoque] Enviando movimento:', formData)
+      const result = await api.addStockMovement(formData)
+      console.log('[Estoque] Movimento registrado com sucesso:', result)
       await loadData()
       setIsModalOpen(false)
       setFormData(prev => ({ ...prev, quantity: 1, motive: "Compra / Reposição de Estoque" }))
     } catch (error) {
-      console.error("Erro ao salvar movimentação:", error)
-      alert("Erro ao aplicar ajuste de estoque no Supabase.")
+      console.error('[Estoque] ERRO ao salvar movimentação:', error)
+      alert(`Erro ao aplicar ajuste de estoque:\n\n${error instanceof Error ? error.message : JSON.stringify(error)}`)
     } finally {
       setIsSaving(false)
+      setLoading(false)
     }
   }
 
