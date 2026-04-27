@@ -51,7 +51,8 @@ export default function EmployeesPage() {
   // TST Signer State
   const [isTstModalOpen, setIsTstModalOpen] = useState(false)
   const [tstStep, setTstStep] = useState<1|2>(1) // 1=identify, 2=sign
-  const [tstName, setTstName] = useState("")
+  const [tstSelectedEmployee, setTstSelectedEmployee] = useState<Employee | null>(null)
+  const [tstSearchTerm, setTstSearchTerm] = useState("")
   const [tstRole, setTstRole] = useState("Técnico de Segurança do Trabalho")
   const [tstAuthMethod, setTstAuthMethod] = useState<'manual'|'facial'>('manual')
   const [tstSignatureBase64, setTstSignatureBase64] = useState<string | null>(null)
@@ -255,13 +256,41 @@ export default function EmployeesPage() {
 
   const openTstModal = () => {
     if (employeeHistory.length === 0) return
-    setTstName("")
+    setTstSelectedEmployee(null)
+    setTstSearchTerm("")
     setTstRole("Técnico de Segurança do Trabalho")
     setTstAuthMethod('manual')
     setTstSignatureBase64(null)
     setTstStep(1)
     setIsTstModalOpen(true)
   }
+
+  const handleSelectTst = async (emp: Employee) => {
+    setTstSelectedEmployee(emp)
+    setTstRole(emp.job_title || "Técnico de Segurança do Trabalho")
+    // If employee has a photo, use it as the signature automatically
+    if (emp.photo_url) {
+      try {
+        const res = await fetch(emp.photo_url)
+        const blob = await res.blob()
+        const b64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(blob)
+        })
+        setTstSignatureBase64(b64)
+        setTstAuthMethod('facial')
+      } catch {
+        // If photo fetch fails, go to manual
+        setTstSignatureBase64(null)
+      }
+    } else {
+      setTstSignatureBase64(null)
+    }
+    setTstStep(2)
+  }
+
+  const tstName = tstSelectedEmployee?.full_name || ""
 
   const exportNR06PDF = async () => {
     const emp = employees.find(e => e.id === selectedEmployeeId)
@@ -765,43 +794,64 @@ export default function EmployeesPage() {
               </button>
             </div>
 
-            {/* Step 1 — Identify TST */}
+            {/* Step 1 — Select TST from employee list */}
             {tstStep === 1 && (
               <div className="p-6 space-y-4">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                   <p className="text-[10px] text-amber-800 font-bold uppercase tracking-widest">
-                    📋 O Prontuário NR-06 deve ser assinado pelo Técnico de Segurança do Trabalho responsável.
+                    📋 Selecione o Técnico de Segurança do Trabalho cadastrado no sistema.
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo do TST</label>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    value={tstName}
-                    onChange={e => setTstName(e.target.value)}
-                    placeholder="Ex: João da Silva"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:border-[#8B1A1A] outline-none"
+                    value={tstSearchTerm}
+                    onChange={e => setTstSearchTerm(e.target.value)}
+                    placeholder="Buscar por nome ou CPF..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm font-bold focus:border-[#8B1A1A] outline-none"
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargo / Função</label>
-                  <input
-                    type="text"
-                    value={tstRole}
-                    onChange={e => setTstRole(e.target.value)}
-                    placeholder="Técnico de Segurança do Trabalho"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:border-[#8B1A1A] outline-none"
-                  />
+                <div className="max-h-[280px] overflow-y-auto space-y-2 custom-scrollbar">
+                  {employees
+                    .filter(e => e.active && (
+                      e.full_name.toLowerCase().includes(tstSearchTerm.toLowerCase()) ||
+                      e.cpf.includes(tstSearchTerm)
+                    ))
+                    .map(emp => (
+                      <button
+                        key={emp.id}
+                        onClick={() => handleSelectTst(emp)}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-[#8B1A1A]/30 hover:bg-red-50/30 transition-all text-left group"
+                      >
+                        {emp.photo_url ? (
+                          <Image src={emp.photo_url} alt={emp.full_name} width={40} height={40} className="w-10 h-10 rounded-full object-cover border-2 border-green-500" unoptimized />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border-2 border-slate-200">
+                            <Users className="w-5 h-5" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-slate-800 text-sm truncate">{emp.full_name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{emp.job_title} • CPF: {emp.cpf}</p>
+                        </div>
+                        {emp.photo_url && (
+                          <span className="text-[8px] font-black text-green-600 bg-green-50 px-2 py-1 rounded border border-green-100 uppercase tracking-widest flex-shrink-0">✓ Foto</span>
+                        )}
+                      </button>
+                    ))
+                  }
+                  {employees.filter(e => e.active && (
+                    e.full_name.toLowerCase().includes(tstSearchTerm.toLowerCase()) || e.cpf.includes(tstSearchTerm)
+                  )).length === 0 && (
+                    <div className="text-center py-8 text-slate-400">
+                      <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs font-bold">Nenhum colaborador encontrado.</p>
+                    </div>
+                  )}
                 </div>
-
-                <button
-                  onClick={() => { if (!tstName.trim()) { toast.error("Informe o nome do responsável."); return; } setTstStep(2) }}
-                  className="w-full bg-[#8B1A1A] hover:bg-[#681313] text-white py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-red-900/20 transition-all"
-                >
-                  Continuar → Assinar
-                </button>
               </div>
             )}
 
