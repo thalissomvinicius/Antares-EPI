@@ -264,6 +264,15 @@ export const api = {
   },
 
   // --- Gestão de Usuários (Apenas Admin) ---
+  async getCurrentUser() {
+    const res = await fetch('/api/me', {
+      headers: await this.getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Nao foi possivel validar o perfil.");
+    return data.user as Profile;
+  },
+
   async getUsers() {
     const res = await fetch('/api/users', {
       headers: await this.getAuthHeaders(),

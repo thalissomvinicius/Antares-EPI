@@ -3,6 +3,14 @@ import { requireAuthorizedUser } from "@/lib/serverAuth"
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
 import type { Profile } from "@/types/database"
 
+type AppRole = Profile["role"]
+
+const VALID_ROLES = new Set<AppRole>(["ADMIN", "ALMOXARIFE", "DIRETORIA"])
+
+function normalizeRole(role: unknown): AppRole {
+  return VALID_ROLES.has(role as AppRole) ? role as AppRole : "ALMOXARIFE"
+}
+
 export async function GET(request: Request) {
   const auth = await requireAuthorizedUser(request, ["ADMIN"])
   if (!auth.authorized) {
@@ -30,7 +38,7 @@ export async function GET(request: Request) {
         id: user.id,
         email: user.email,
         full_name: profile?.full_name || "",
-        role: profile?.role || "USER",
+        role: normalizeRole(profile?.role || user.user_metadata?.role),
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
       }
@@ -51,12 +59,13 @@ export async function POST(request: Request) {
 
   try {
     const { email, password, full_name, role } = await request.json()
+    const normalizedRole = normalizeRole(role)
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name },
+      user_metadata: { full_name, role: normalizedRole },
     })
 
     if (authError) {
@@ -70,7 +79,7 @@ export async function POST(request: Request) {
           id: authData.user.id,
           email,
           full_name,
-          role,
+          role: normalizedRole,
         })
 
       if (profileError) {
@@ -95,9 +104,21 @@ export async function PUT(request: Request) {
   try {
     const { id, password, role, full_name } = await request.json()
 
-    const updates: { password?: string; user_metadata?: { full_name: string } } = {}
+    const { data: existingUserData, error: existingUserError } = await supabaseAdmin.auth.admin.getUserById(id)
+    if (existingUserError || !existingUserData.user) {
+      return NextResponse.json({ error: existingUserError?.message || "Usuario nao encontrado." }, { status: 404 })
+    }
+
+    const normalizedRole = role ? normalizeRole(role) : undefined
+    const updates: { password?: string; user_metadata?: Record<string, unknown> } = {}
     if (password) updates.password = password
-    if (full_name) updates.user_metadata = { full_name }
+    if (full_name || normalizedRole) {
+      updates.user_metadata = {
+        ...(existingUserData.user.user_metadata || {}),
+        ...(full_name ? { full_name } : {}),
+        ...(normalizedRole ? { role: normalizedRole } : {}),
+      }
+    }
 
     if (Object.keys(updates).length > 0) {
       const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, updates)
@@ -107,14 +128,19 @@ export async function PUT(request: Request) {
     }
 
     const profileUpdates: Partial<Pick<Profile, "role" | "full_name">> = {}
-    if (role) profileUpdates.role = role
+    if (normalizedRole) profileUpdates.role = normalizedRole
     if (full_name) profileUpdates.full_name = full_name
 
     if (Object.keys(profileUpdates).length > 0) {
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
-        .update(profileUpdates)
-        .eq("id", id)
+        .upsert({
+          id,
+          email: existingUserData.user.email ?? null,
+          full_name: existingUserData.user.user_metadata?.full_name || null,
+          role: normalizeRole(existingUserData.user.user_metadata?.role),
+          ...profileUpdates,
+        })
 
       if (profileError) {
         return NextResponse.json({ error: profileError.message }, { status: 400 })

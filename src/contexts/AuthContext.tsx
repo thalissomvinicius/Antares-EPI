@@ -47,10 +47,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      const role = await api.getProfileRole(session.user.id)
+      const profile = await api.getCurrentUser()
       const userData = {
         ...session.user,
-        role: (role || session.user.user_metadata?.role || "ALMOXARIFE") as "ADMIN" | "ALMOXARIFE" | "DIRETORIA",
+        email: profile.email || session.user.email,
+        role: profile.role,
+        user_metadata: {
+          ...session.user.user_metadata,
+          full_name: profile.full_name || session.user.user_metadata?.full_name,
+          role: profile.role,
+        },
       }
 
       // Bypass temporario para garantir seu acesso administrativo
