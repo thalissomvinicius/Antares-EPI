@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from("profiles")
-    .select("id,email,full_name,role,created_at")
+    .select("id,email,full_name,role")
     .eq("id", user.id)
     .maybeSingle()
 
@@ -66,7 +66,6 @@ export async function GET(request: Request) {
       email,
       full_name: fullName,
       role,
-      created_at: profile?.created_at,
     },
   })
 }
