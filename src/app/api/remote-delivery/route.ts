@@ -73,6 +73,20 @@ export async function POST(req: Request) {
       signatureUrl = publicUrl;
     }
 
+    const { data: beforeStockData, error: beforeStockError } = await supabaseAdmin
+      .from('ppes')
+      .select('current_stock')
+      .eq('id', ppe_id)
+      .maybeSingle();
+    if (beforeStockError) throw beforeStockError;
+    const stockBeforeRaw = (beforeStockData as { current_stock?: number | string } | null)?.current_stock;
+    const stockBefore =
+      typeof stockBeforeRaw === 'number'
+        ? stockBeforeRaw
+        : typeof stockBeforeRaw === 'string' && Number.isFinite(Number(stockBeforeRaw))
+          ? Number(stockBeforeRaw)
+          : null;
+
     // 2. Insere a entrega no banco usando a chave de Admin
     const { data, error } = await supabaseAdmin
       .from('deliveries')
@@ -92,6 +106,57 @@ export async function POST(req: Request) {
     if (error) {
       console.error("Database insert error:", error);
       throw error;
+    }
+
+    const { data: afterStockData, error: afterStockError } = await supabaseAdmin
+      .from('ppes')
+      .select('current_stock')
+      .eq('id', ppe_id)
+      .maybeSingle();
+    if (afterStockError) throw afterStockError;
+    const stockAfterRaw = (afterStockData as { current_stock?: number | string } | null)?.current_stock;
+    const stockAfterInsert =
+      typeof stockAfterRaw === 'number'
+        ? stockAfterRaw
+        : typeof stockAfterRaw === 'string' && Number.isFinite(Number(stockAfterRaw))
+          ? Number(stockAfterRaw)
+          : null;
+
+    const desiredStock = stockBefore === null ? null : Math.max(0, stockBefore - quantity);
+    if (desiredStock !== null && stockAfterInsert !== null && stockAfterInsert > desiredStock) {
+      const missingOut = stockAfterInsert - desiredStock;
+      const movementPayload = {
+        ppe_id,
+        quantity: missingOut,
+        type: 'SAIDA',
+        motive: `Entrega remota (${reason})`,
+        created_by_name: 'Sistema (Entrega Remota)',
+      };
+      const { error: movementError } = await supabaseAdmin
+        .from('stock_movements')
+        .insert([movementPayload]);
+
+      if (movementError) {
+        const text = `${movementError.message || ''} ${movementError.details || ''}`.toLowerCase();
+        const missingCreatedByColumns =
+          movementError.code === 'PGRST204' ||
+          movementError.code === '42703' ||
+          text.includes('created_by_name') ||
+          text.includes('created_by_id');
+
+        if (!missingCreatedByColumns) throw movementError;
+
+        const { error: fallbackError } = await supabaseAdmin
+          .from('stock_movements')
+          .insert([{
+            ppe_id,
+            quantity: missingOut,
+            type: 'SAIDA',
+            motive: `Entrega remota (${reason})`,
+          }]);
+
+        if (fallbackError) throw fallbackError;
+      }
     }
 
     // 3. Marca link como concluído se existir

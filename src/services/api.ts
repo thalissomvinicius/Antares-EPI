@@ -115,6 +115,69 @@ function isDeliveryReasonConstraintIssue(error: unknown): boolean {
   return maybeError.code === "23514" && (text.includes("reason") || text.includes("deliveries"));
 }
 
+async function getPpeCurrentStock(ppeId: string): Promise<number | null> {
+  const { data, error } = await withSessionRetry(() =>
+    supabase
+      .from("ppes")
+      .select("current_stock")
+      .eq("id", ppeId)
+      .maybeSingle()
+  );
+
+  if (error) throw error;
+  const raw = data?.current_stock;
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+async function insertStockOutMovement(ppeId: string, quantity: number, motive: string): Promise<void> {
+  if (quantity <= 0) return;
+
+  const firstTry = await withSessionRetry(() =>
+    supabase
+      .from("stock_movements")
+      .insert([{
+        ppe_id: ppeId,
+        quantity,
+        type: "SAIDA",
+        motive,
+        created_by_name: "Sistema (Entrega)",
+      }])
+      .select()
+  );
+
+  if (!firstTry.error) return;
+
+  const text = `${firstTry.error.message || ""} ${firstTry.error.details || ""}`.toLowerCase();
+  const missingCreatedByColumns =
+    firstTry.error.code === "PGRST204" ||
+    firstTry.error.code === "42703" ||
+    text.includes("created_by_name") ||
+    text.includes("created_by_id");
+
+  if (!missingCreatedByColumns) {
+    throw firstTry.error;
+  }
+
+  const fallbackTry = await withSessionRetry(() =>
+    supabase
+      .from("stock_movements")
+      .insert([{
+        ppe_id: ppeId,
+        quantity,
+        type: "SAIDA",
+        motive,
+      }])
+      .select()
+  );
+
+  if (fallbackTry.error) throw fallbackTry.error;
+}
+
 export const api = {
   async getAuthHeaders(): Promise<Record<string, string>> {
     const session = await ensureActiveSession();
@@ -471,6 +534,7 @@ export const api = {
     let signatureUrl = null;
     await ensureActiveSession();
     const normalizedReason = normalizeDeliveryReason(delivery.reason);
+    const stockBefore = await getPpeCurrentStock(delivery.ppe_id);
 
     // 1. Se houver imagem da assinatura, faz o upload para o Storage
     if (signatureFile) {
@@ -506,6 +570,15 @@ export const api = {
     );
 
     if (!firstInsertResult.error && firstInsertResult.data?.[0]) {
+      const stockAfterInsert = await getPpeCurrentStock(delivery.ppe_id);
+      const desiredStock = stockBefore === null ? null : Math.max(0, stockBefore - delivery.quantity);
+
+      // If delivery insert did not reduce stock (missing trigger/misconfig), compensate via stock movement.
+      if (desiredStock !== null && stockAfterInsert !== null && stockAfterInsert > desiredStock) {
+        const missingOut = stockAfterInsert - desiredStock;
+        await insertStockOutMovement(delivery.ppe_id, missingOut, `Entrega de EPI (${normalizedReason})`);
+      }
+
       return firstInsertResult.data[0];
     }
 
@@ -530,6 +603,14 @@ export const api = {
       );
 
       if (!fallbackResult.error && fallbackResult.data?.[0]) {
+        const stockAfterInsert = await getPpeCurrentStock(delivery.ppe_id);
+        const desiredStock = stockBefore === null ? null : Math.max(0, stockBefore - delivery.quantity);
+
+        if (desiredStock !== null && stockAfterInsert !== null && stockAfterInsert > desiredStock) {
+          const missingOut = stockAfterInsert - desiredStock;
+          await insertStockOutMovement(delivery.ppe_id, missingOut, `Entrega de EPI (${normalizedReason})`);
+        }
+
         return fallbackResult.data[0];
       }
 
