@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Users, Plus, Search, X, Loader2, HardDrive, FileDown, ShieldAlert, History, UserMinus, ShieldCheck, Lock, Camera, Link2, PenTool, BriefcaseBusiness } from "lucide-react"
+import { Users, Plus, Search, X, Loader2, HardDrive, FileDown, ShieldAlert, History, UserMinus, ShieldCheck, Lock, Camera, Link2, PenTool, BriefcaseBusiness, Fingerprint } from "lucide-react"
 import SignatureCanvas from "react-signature-canvas"
 import { api } from "@/services/api"
 import { Employee, Workplace, DeliveryWithRelations, CatalogItem } from "@/types/database"
@@ -19,6 +19,36 @@ import { usePdfActionDialog } from "@/hooks/usePdfActionDialog"
 
 const normalizeName = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR")
 const formatTypingName = (value: string) => value.toLocaleUpperCase("pt-BR")
+
+const getBiometryStatus = (employee: Employee) => {
+  const hasPhoto = Boolean(employee.photo_url)
+  const hasDescriptor = Boolean(employee.face_descriptor?.length)
+
+  if (hasPhoto && hasDescriptor) {
+    return {
+      label: "Cadastrada",
+      detail: "Foto e face",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      iconClassName: "text-emerald-600",
+    }
+  }
+
+  if (hasPhoto || hasDescriptor) {
+    return {
+      label: "Incompleta",
+      detail: hasPhoto ? "Falta face" : "Falta foto",
+      className: "bg-amber-50 text-amber-700 border-amber-200",
+      iconClassName: "text-amber-600",
+    }
+  }
+
+  return {
+    label: "Nao cadastrada",
+    detail: "Sem foto/face",
+    className: "bg-slate-50 text-slate-500 border-slate-200",
+    iconClassName: "text-slate-400",
+  }
+}
 
 export default function EmployeesPage() {
   const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
@@ -472,6 +502,7 @@ export default function EmployeesPage() {
                       <th className="px-6 py-5">Nome do Colaborador</th>
                       <th className="px-6 py-5">Cargo / Setor</th>
                       <th className="px-6 py-5">Obra / Canteiro</th>
+                      <th className="px-6 py-5">Biometria</th>
                       <th className="px-6 py-5">Status</th>
                       <th className="px-6 py-5 text-right">Ações</th>
                   </tr>
@@ -491,6 +522,17 @@ export default function EmployeesPage() {
                               <HardDrive className="w-3 h-3 text-[#8B1A1A]" />
                               {getWorkplaceName(emp.workplace_id)}
                           </div>
+                      </td>
+                      <td className="px-6 py-5">
+                          {(() => {
+                            const biometry = getBiometryStatus(emp)
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${biometry.className}`}>
+                                <Fingerprint className={`w-3 h-3 ${biometry.iconClassName}`} />
+                                {biometry.label}
+                              </span>
+                            )
+                          })()}
                       </td>
                       <td className="px-6 py-5">
                           <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full border ${
@@ -521,7 +563,7 @@ export default function EmployeesPage() {
                   ))}
                   {filteredEmployees.length === 0 && (
                       <tr>
-                          <td colSpan={5} className="px-6 py-10 text-center text-slate-400 italic font-medium">
+                          <td colSpan={6} className="px-6 py-10 text-center text-slate-400 italic font-medium">
                               Nenhum colaborador encontrado.
                           </td>
                       </tr>
@@ -561,6 +603,15 @@ export default function EmployeesPage() {
                           <HardDrive className="w-3.5 h-3.5 text-[#8B1A1A]" />
                           {getWorkplaceName(emp.workplace_id)}
                       </div>
+                      {(() => {
+                        const biometry = getBiometryStatus(emp)
+                        return (
+                          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest mt-2 ${biometry.className}`}>
+                            <Fingerprint className={`w-3 h-3 ${biometry.iconClassName}`} />
+                            {biometry.label}
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     <div className="pt-3 flex gap-2 border-t border-slate-100 mt-1">
