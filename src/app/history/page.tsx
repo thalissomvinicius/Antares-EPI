@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { History, ShieldCheck, Search, Loader2, FileDown } from "lucide-react"
+import { ExternalLink, Fingerprint, History, ShieldCheck, Search, Loader2, FileDown } from "lucide-react"
 import { api } from "@/services/api"
-import { DeliveryWithRelations } from "@/types/database"
+import { DeliveryWithRelations, SignedDocument } from "@/types/database"
 import { generateDeliveryPDF } from "@/utils/pdfGenerator"
 import { usePdfActionDialog } from "@/hooks/usePdfActionDialog"
 import { toast } from "sonner"
@@ -11,6 +11,7 @@ import { toast } from "sonner"
 export default function HistoryPage() {
   const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
   const [records, setRecords] = useState<DeliveryWithRelations[]>([])
+  const [signedDocuments, setSignedDocuments] = useState<SignedDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -19,8 +20,12 @@ export default function HistoryPage() {
     async function fetchHistory() {
       try {
         setLoading(true)
-        const data = await api.getDeliveries()
-        setRecords(data)
+        const [deliveryData, documentData] = await Promise.all([
+          api.getDeliveries(),
+          api.getSignedDocuments(),
+        ])
+        setRecords(deliveryData)
+        setSignedDocuments(documentData)
       } catch (err) {
         console.error("Erro histórico:", err)
         toast.error("Falha ao carregar histórico.")
@@ -85,9 +90,16 @@ export default function HistoryPage() {
     }
   }
 
+  const getSignedDocumentForDelivery = (deliveryId: string) =>
+    signedDocuments.find((document) =>
+      document.delivery_id === deliveryId ||
+      document.delivery_ids?.includes(deliveryId)
+    )
+
   const filteredRecords = records.filter((rec: DeliveryWithRelations) => 
     rec.employee?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rec.id.toLowerCase().includes(searchTerm.toLowerCase())
+    rec.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getSignedDocumentForDelivery(rec.id)?.sha256_hash.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -130,12 +142,16 @@ export default function HistoryPage() {
                     <th className="px-6 py-5">Colaborador</th>
                     <th className="px-6 py-5">EPI / CA</th>
                     <th className="px-6 py-5">Data da Entrega</th>
-                    <th className="px-6 py-5">Assinatura Digital</th>
+                    <th className="px-6 py-5">Arquivo Juridico</th>
+                    <th className="px-6 py-5">Hash SHA-256</th>
                     <th className="px-6 py-5 text-right">Ação</th>
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                {filteredRecords.map((rec: DeliveryWithRelations) => (
+                {filteredRecords.map((rec: DeliveryWithRelations) => {
+                  const signedDocument = getSignedDocumentForDelivery(rec.id)
+
+                  return (
                     <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors group">
                     <td className="px-6 py-5 font-mono text-[10px] text-slate-400">#{rec.id.slice(0, 8)}</td>
                     <td className="px-6 py-5 font-bold text-slate-800">{rec.employee?.full_name}</td>
@@ -148,18 +164,45 @@ export default function HistoryPage() {
                         {new Date(rec.delivery_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="px-6 py-5">
-                        {rec.signature_url ? (
+                        {signedDocument ? (
+                             <a
+                                href={signedDocument.document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center text-[10px] text-green-700 font-bold bg-green-50 px-2 py-1 rounded border border-green-100 hover:bg-green-100 transition-colors w-fit"
+                             >
+                                <ShieldCheck className="w-3 h-3 mr-1" />
+                                Arquivado
+                                <ExternalLink className="w-3 h-3 ml-1" />
+                             </a>
+                        ) : rec.signature_url ? (
                              <a 
                                 href={rec.signature_url} 
                                 target="_blank" 
-                                className="flex items-center text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-100 hover:bg-green-100 transition-colors w-fit"
+                                rel="noopener noreferrer"
+                                className="flex items-center text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-100 hover:bg-amber-100 transition-colors w-fit"
                              >
                                 <ShieldCheck className="w-3 h-3 mr-1" />
-                                Validada
+                                So assinatura
                              </a>
                         ) : (
                             <span className="text-[10px] text-amber-500 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-100 w-fit">Pendente</span>
                         )}
+                    </td>
+                    <td className="px-6 py-5">
+                      {signedDocument ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1 text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                            <Fingerprint className="w-3.5 h-3.5 text-[#8B1A1A]" />
+                            {signedDocument.sha256_hash.slice(0, 12)}...
+                          </div>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">
+                            {new Date(signedDocument.created_at).toLocaleString("pt-BR")}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-300 uppercase">Sem arquivo</span>
+                      )}
                     </td>
                     <td className="px-6 py-5 text-right">
                         <button 
@@ -176,10 +219,11 @@ export default function HistoryPage() {
                         </button>
                     </td>
                     </tr>
-                ))}
+                  )
+                })}
                 {filteredRecords.length === 0 && (
                     <tr>
-                        <td colSpan={6} className="px-6 py-20 text-center text-slate-400 italic font-medium">
+                        <td colSpan={7} className="px-6 py-20 text-center text-slate-400 italic font-medium">
                             Nenhum registro de entrega encontrado no histórico.
                         </td>
                     </tr>

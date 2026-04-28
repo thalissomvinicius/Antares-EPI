@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { Employee, PPE, Delivery, Training, DeliveryWithRelations, TrainingWithRelations, Workplace, StockMovement, Profile, CatalogItem } from "@/types/database";
+import { Employee, PPE, Delivery, Training, DeliveryWithRelations, TrainingWithRelations, Workplace, StockMovement, Profile, CatalogItem, SignedDocument } from "@/types/database";
 import { Session } from "@supabase/supabase-js";
 
 type AddTrainingResult = {
@@ -175,6 +175,22 @@ function isMissingCatalogTableIssue(error: unknown): boolean {
   );
 }
 
+function isMissingSignedDocumentsTableIssue(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as SupabaseLikeError & { status?: number };
+  const text = `${maybeError.message || ""} ${maybeError.details || ""} ${maybeError.hint || ""}`.toLowerCase();
+  return (
+    maybeError.code === "42P01" ||
+    maybeError.code === "PGRST205" ||
+    maybeError.status === 404 ||
+    text.includes("signed_documents")
+  ) && (
+    text.includes("schema cache") ||
+    text.includes("does not exist") ||
+    text.includes("could not find")
+  );
+}
+
 function normalizeCatalogName(name: string): string {
   return name.trim().replace(/\s+/g, " ").toLocaleUpperCase("pt-BR");
 }
@@ -306,6 +322,22 @@ export const api = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Nao foi possivel arquivar o documento assinado.");
     return data.document;
+  },
+
+  async getSignedDocuments() {
+    const { data, error } = await withSessionRetry(() =>
+      supabase
+        .from("signed_documents")
+        .select("*")
+        .order("created_at", { ascending: false })
+    );
+
+    if (error) {
+      if (isMissingSignedDocumentsTableIssue(error)) return [] as SignedDocument[];
+      throw error;
+    }
+
+    return data as SignedDocument[];
   },
 
   async getProfileRole(userId: string) {

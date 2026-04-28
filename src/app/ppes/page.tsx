@@ -177,6 +177,7 @@ export default function PpesPage() {
                 <tr>
                     <th className="px-6 py-5">Equipamento</th>
                     <th className="px-6 py-5">Identificação (C.A)</th>
+                    <th className="px-6 py-5">Conformidade</th>
                     <th className="px-6 py-5 text-center">Saldo em Estoque</th>
                     <th className="px-6 py-5">Custo Unit.</th>
                     <th className="px-6 py-5 text-right">Ações</th>
@@ -193,6 +194,18 @@ export default function PpesPage() {
                         <span className="text-slate-500 font-mono font-black tracking-tighter bg-slate-100 px-2 py-1 rounded text-xs">
                           CA {ppe.ca_number}
                         </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      {(() => {
+                        const diffDays = Math.ceil((new Date(ppe.ca_expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                        if (diffDays < 0) {
+                          return <span className="text-[9px] font-black text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded uppercase tracking-widest">CA vencido</span>
+                        }
+                        if (diffDays <= 90) {
+                          return <span className="text-[9px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded uppercase tracking-widest">Vence em {diffDays}d</span>
+                        }
+                        return <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded uppercase tracking-widest">Regular</span>
+                      })()}
                     </td>
                     <td className="px-6 py-5 text-center">
                         <div className="flex flex-col items-center">
@@ -224,7 +237,7 @@ export default function PpesPage() {
                 ))}
                 {filteredPpes.length === 0 && (
                     <tr>
-                        <td colSpan={5} className="px-6 py-10 text-center text-slate-400 italic">
+                        <td colSpan={6} className="px-6 py-10 text-center text-slate-400 italic">
                             Nenhum EPI cadastrado.
                         </td>
                     </tr>

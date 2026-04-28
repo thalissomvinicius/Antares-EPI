@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, AlertTriangle, PackageCheck, ArrowRight, ShieldCheck } from "lucide-react"
+import { Users, AlertTriangle, PackageCheck, ArrowRight, ShieldCheck, Archive, Boxes } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/services/api"
 import { DeliveryWithRelations } from "@/types/database"
@@ -19,7 +19,7 @@ function DashboardSkeleton() {
         </div>
         <Skeleton className="h-12 w-40" />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         {[1, 2, 3].map(i => (
           <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -49,6 +49,8 @@ export default function Dashboard() {
     deliveries: 0,
     employees: 0,
     criticalCAs: 0,
+    lowStock: 0,
+    signedDocuments: 0,
   })
   const [recentDeliveries, setRecentDeliveries] = useState<DeliveryWithRelations[]>([])
   const [chartData, setChartData] = useState<{name: string, value: number}[]>([])
@@ -58,10 +60,11 @@ export default function Dashboard() {
     async function loadDashboardData() {
       try {
         setLoading(true)
-        const [empData, ppeData, deliveryData] = await Promise.all([
+        const [empData, ppeData, deliveryData, documentData] = await Promise.all([
           api.getEmployees(),
           api.getPpes(),
-          api.getDeliveries()
+          api.getDeliveries(),
+          api.getSignedDocuments()
         ])
 
         const now = new Date()
@@ -74,7 +77,9 @@ export default function Dashboard() {
         setStats({
           deliveries: deliveryData.length,
           employees: empData.filter(e => e.active).length,
-          criticalCAs: criticalCount
+          criticalCAs: criticalCount,
+          lowStock: ppeData.filter(p => p.active && (p.current_stock || 0) <= 5).length,
+          signedDocuments: documentData.length
         })
 
         // Chart Data (Last 7 Days)
@@ -118,10 +123,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         {[
           { title: "Entregas Realizadas", value: stats.deliveries, subtitle: "Total no banco de dados", icon: PackageCheck, color: "text-[#8B1A1A]", bg: "bg-red-50" },
           { title: "Equipe Ativa", value: stats.employees, subtitle: "Colaboradores cadastrados", icon: Users, color: "text-slate-800", bg: "bg-slate-100" },
+          { title: "Estoque Baixo", value: stats.lowStock, subtitle: "Itens com 5 ou menos", icon: Boxes, color: "text-blue-700", bg: "bg-blue-50" },
+          { title: "PDFs Auditados", value: stats.signedDocuments, subtitle: "Arquivo juridico ativo", icon: Archive, color: "text-emerald-700", bg: "bg-emerald-50" },
           { title: "CAs em Alerta", value: stats.criticalCAs, subtitle: "Atenção necessária", icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50" },
         ].map((item, idx) => {
           const Icon = item.icon

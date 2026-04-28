@@ -180,6 +180,29 @@ export default function DeliveryPage() {
     setCart(prev => prev.filter(item => item.ppeId !== ppeId))
   }
 
+  const validateCartForDelivery = useCallback(() => {
+    for (const item of cart) {
+      const ppe = ppes.find((candidate) => candidate.id === item.ppeId)
+      if (!ppe) {
+        toast.error(`EPI ${item.ppeName} nao encontrado no catalogo.`)
+        return false
+      }
+
+      const caExpired = new Date(ppe.ca_expiry_date).getTime() < new Date().setHours(0, 0, 0, 0)
+      if (caExpired) {
+        toast.error(`CA vencido: ${ppe.name}. Atualize o CA antes da entrega.`)
+        return false
+      }
+
+      if ((ppe.current_stock || 0) < item.quantity) {
+        toast.error(`Estoque insuficiente para ${ppe.name}. Saldo atual: ${ppe.current_stock || 0}.`)
+        return false
+      }
+    }
+
+    return true
+  }, [cart, ppes])
+
   const clearSignature = () => {
     if (sigCanvas.current) {
       sigCanvas.current.clear()
@@ -206,6 +229,7 @@ export default function DeliveryPage() {
       toast.error("Adicione pelo menos um EPI à lista de entrega.")
       return
     }
+    if (!validateCartForDelivery()) return
 
     try {
       setIsSaving(true)
@@ -315,7 +339,7 @@ export default function DeliveryPage() {
     } finally {
       setIsSaving(false)
     }
-  }, [selectedEmployeeId, selectedWorkplaceId, cart, ipAddress, location, authMethod, selectedEmployee, selectedWorkplace, deliveryDate, getSelectedEmployeePhotoBase64])
+  }, [selectedEmployeeId, selectedWorkplaceId, cart, ipAddress, location, authMethod, selectedEmployee, selectedWorkplace, deliveryDate, getSelectedEmployeePhotoBase64, validateCartForDelivery])
 
   const handleManualSave = () => {
     if (authMethod === 'manual_facial' && !selectedEmployee?.photo_url) {
@@ -337,9 +361,14 @@ export default function DeliveryPage() {
   const generateRemoteLink = async () => {
       if (cart.length === 0) {
         toast.error("Adicione pelo menos um EPI à lista antes de gerar o link.")
+	        return
+	      }
+      if (cart.length > 1) {
+        toast.error("Assinatura remota aceita 1 EPI por link. Gere um link separado para cada entrega.")
         return
       }
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      if (!validateCartForDelivery()) return
+	      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
       const deliveryDataPayload = {
           e: selectedEmployeeId,
           p: cart[0].ppeId,
@@ -669,7 +698,9 @@ export default function DeliveryPage() {
                 <div className="pt-6 space-y-3 lg:border-t lg:border-slate-100">
                   <button 
                     disabled={employees.length === 0 || cart.length === 0}
-                    onClick={() => setStep(2)}
+                    onClick={() => {
+                      if (validateCartForDelivery()) setStep(2)
+                    }}
                     className="w-full bg-[#8B1A1A] hover:bg-[#681313] text-white disabled:bg-slate-300 py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all shadow-xl shadow-red-900/10 border-b-4 border-red-900 flex items-center justify-center gap-2"
                   >
                     Avançar para Assinatura ({cart.length} EPI{cart.length !== 1 ? 's' : ''})

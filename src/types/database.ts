@@ -108,6 +108,29 @@ export type TrainingWithRelations = Training & {
     cpf: string;
   };
 };
+
+export type SignedDocument = {
+  id: string;
+  document_type: 'delivery' | 'remote_delivery' | 'return' | 'nr06' | 'training_certificate';
+  employee_id: string | null;
+  delivery_id: string | null;
+  delivery_ids: string[] | null;
+  training_id: string | null;
+  file_name: string;
+  document_url: string;
+  storage_path: string;
+  sha256_hash: string;
+  auth_method: string | null;
+  signature_url: string | null;
+  photo_evidence_url: string | null;
+  ip_address: string | null;
+  geo_location: string | null;
+  user_agent: string | null;
+  metadata: Record<string, unknown>;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Profile = {
   id: string;
   email: string | null;
