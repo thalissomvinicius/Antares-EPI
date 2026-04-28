@@ -838,6 +838,10 @@ export interface TrainingCertificateData {
   instructorRole?: string
   signatureBase64?: string
   photoBase64?: string
+  instructorPhotoBase64?: string
+  participantSignatureBase64?: string
+  participantPhotoBase64?: string
+  participantAuthMethod?: AuthMethod
   programContent?: string[]
   validationCode?: string
 }
@@ -908,10 +912,11 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
   
   doc.setDrawColor(139, 0, 0)
   doc.setLineWidth(0.7)
-  if (data.photoBase64) {
+  const instructorPhoto = data.instructorPhotoBase64 || data.photoBase64
+  if (instructorPhoto) {
     doc.roundedRect(photoX, photoY, photoW, photoH, 3, 3, "S")
     try {
-      const imgProps = doc.getImageProperties(data.photoBase64);
+      const imgProps = doc.getImageProperties(instructorPhoto);
       const ratio = imgProps.width / imgProps.height;
       let drawW = photoW - 2;
       let drawH = drawW / ratio;
@@ -921,9 +926,9 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
       }
       const xOff = (photoW - 2 - drawW) / 2;
       const yOff = (photoH - 2 - drawH) / 2;
-      doc.addImage(data.photoBase64, "JPEG", photoX + 1 + xOff, photoY + 1 + yOff, drawW, drawH);
+      doc.addImage(instructorPhoto, "JPEG", photoX + 1 + xOff, photoY + 1 + yOff, drawW, drawH);
     } catch {
-      doc.addImage(data.photoBase64, "JPEG", photoX+1, photoY+1, photoW-2, photoH-2)
+      doc.addImage(instructorPhoto, "JPEG", photoX+1, photoY+1, photoW-2, photoH-2)
     }
   } else {
     doc.ellipse(photoX + photoW/2, photoY + photoH/2, photoW/2, photoH/2, "S")
@@ -931,7 +936,7 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(150, 150, 150)
-  doc.text("Resp. Técnico", photoX + photoW/2, photoY + photoH + 5, { align: "center" })
+  doc.text("Instrutor", photoX + photoW/2, photoY + photoH + 5, { align: "center" })
 
   // Corpo Central
   doc.setFont("helvetica", "italic")
@@ -1007,36 +1012,61 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
     doc.text(`/validar/${code}`, marginX + 12.5, footerY + 33.5, { align: "center" })
   } catch {}
 
-  // Center: Signature
-  if (data.instructorName) {
+  // Center: participant evidence
+  const participantSignature = data.participantSignatureBase64 || data.signatureBase64
+  const participantPhoto = data.participantPhotoBase64
+  if (participantSignature || participantPhoto) {
     const sigLineW = 100 // ~280px
     const sigY = footerY + 15
+    const hasSignature = Boolean(participantSignature)
+    const hasPhoto = Boolean(participantPhoto)
+    const signatureCenterX = hasSignature && hasPhoto ? centerX - 22 : centerX
+
     doc.setDrawColor(139, 0, 0)
     doc.setLineWidth(0.5)
-    doc.line(centerX - sigLineW/2, sigY, centerX + sigLineW/2, sigY)
+    if (hasSignature) {
+      const lineWForEvidence = hasPhoto ? 72 : sigLineW
+      doc.line(signatureCenterX - lineWForEvidence/2, sigY, signatureCenterX + lineWForEvidence/2, sigY)
+    }
 
-    if (data.signatureBase64) {
+    if (participantSignature && hasSignature) {
       try {
-        const imgProps = doc.getImageProperties(data.signatureBase64)
+        const imgProps = doc.getImageProperties(participantSignature)
         const ratio = imgProps.width / imgProps.height
         let drawH = 15; // ~45px
         let drawW = drawH * ratio;
-        if (drawW > sigLineW) {
-          drawW = sigLineW;
+        const maxW = hasPhoto ? 72 : sigLineW
+        if (drawW > maxW) {
+          drawW = maxW;
           drawH = drawW / ratio;
         }
-        doc.addImage(data.signatureBase64, "PNG", centerX - drawW/2, sigY - drawH - 1, drawW, drawH)
+        doc.addImage(participantSignature, "PNG", signatureCenterX - drawW/2, sigY - drawH - 1, drawW, drawH)
       } catch {}
+    }
+
+    if (participantPhoto && hasPhoto) {
+      const evidencePhotoW = 20
+      const evidencePhotoH = 24
+      const evidencePhotoX = centerX + 24
+      const evidencePhotoY = sigY - evidencePhotoH - 2
+      doc.roundedRect(evidencePhotoX, evidencePhotoY, evidencePhotoW, evidencePhotoH, 2, 2, "S")
+      try {
+        doc.addImage(participantPhoto, "JPEG", evidencePhotoX + 1, evidencePhotoY + 1, evidencePhotoW - 2, evidencePhotoH - 2)
+      } catch {}
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(7)
+      doc.setTextColor(119, 119, 119)
+      doc.text("Foto", evidencePhotoX + evidencePhotoW / 2, sigY + 5, { align: "center" })
     }
 
     doc.setFont("helvetica", "bold")
     doc.setFontSize(11)
     doc.setTextColor(85, 85, 85)
-    doc.text(data.instructorName.toUpperCase(), centerX, sigY + 5, { align: "center" })
+    doc.text(data.employeeName.toUpperCase(), signatureCenterX, sigY + 5, { align: "center" })
     
     doc.setFont("helvetica", "normal")
     doc.setFontSize(10)
-    doc.text(data.instructorRole || "Resp. Técnico", centerX, sigY + 10, { align: "center" })
+    doc.text("Colaborador treinado", signatureCenterX, sigY + 10, { align: "center" })
   }
 
   // Right: Footer text

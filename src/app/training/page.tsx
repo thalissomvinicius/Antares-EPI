@@ -38,6 +38,7 @@ export default function TrainingPage() {
   const [tstAuthMethod, setTstAuthMethod] = useState<'manual' | 'facial' | 'manual_facial'>('manual')
   const [tstSignatureBase64, setTstSignatureBase64] = useState<string | null>(null)
   const [tstPhotoBase64, setTstPhotoBase64] = useState<string | null>(null)
+  const [instructorPhotoBase64, setInstructorPhotoBase64] = useState<string | null>(null)
   const [isFaceCameraTstOpen, setIsFaceCameraTstOpen] = useState(false)
   const tstSigCanvas = useRef<SignatureCanvas | null>(null)
 
@@ -90,7 +91,7 @@ export default function TrainingPage() {
     e.preventDefault()
     if (!formData.employee_id) return
     if (!tstSignatureBase64 || !tstSelectedEmployee || (tstAuthMethod === 'manual_facial' && !tstPhotoBase64)) {
-      toast.error("É necessário colher a assinatura do instrutor.")
+      toast.error("É necessário colher a evidência do colaborador treinado.")
       return
     }
 
@@ -131,8 +132,10 @@ export default function TrainingPage() {
         expiryDate: format(expiryDate, "yyyy-MM-dd"),
         instructorName: tstSelectedEmployee.full_name,
         instructorRole: tstRole,
-        signatureBase64: tstSignatureBase64,
-        photoBase64: tstAuthMethod === 'manual_facial' ? tstPhotoBase64 || undefined : tstAuthMethod === 'facial' ? tstSignatureBase64 : undefined,
+        instructorPhotoBase64: instructorPhotoBase64 || undefined,
+        participantSignatureBase64: tstAuthMethod === 'manual' || tstAuthMethod === 'manual_facial' ? tstSignatureBase64 : undefined,
+        participantPhotoBase64: tstAuthMethod === 'manual_facial' ? tstPhotoBase64 || undefined : tstAuthMethod === 'facial' ? tstSignatureBase64 : undefined,
+        participantAuthMethod: tstAuthMethod,
         validationCode,
       })
 
@@ -200,6 +203,7 @@ export default function TrainingPage() {
     setTstSearchTerm("")
     setTstSignatureBase64(null)
     setTstPhotoBase64(null)
+    setInstructorPhotoBase64(null)
     setTstAuthMethod('manual')
     setCustomTrainingName("")
     setFormData(prev => ({ ...prev, training_name: "Uso e Guarda de EPI (NR-06)" }))
@@ -209,6 +213,7 @@ export default function TrainingPage() {
     setTstSelectedEmployee(emp)
     setTstSignatureBase64(null)
     setTstPhotoBase64(null)
+    setInstructorPhotoBase64(null)
     setTstRole(emp.job_title || "Técnico de Segurança do Trabalho")
     
     if (emp.photo_url) {
@@ -220,16 +225,32 @@ export default function TrainingPage() {
           reader.onloadend = () => resolve(reader.result as string)
           reader.readAsDataURL(blob)
         })
+        setInstructorPhotoBase64(b64)
+      } catch {
+        setInstructorPhotoBase64(null)
+      }
+    }
+
+    const trainedEmployee = employees.find(item => item.id === formData.employee_id)
+    if (trainedEmployee?.photo_url) {
+      try {
+        const res = await fetch(trainedEmployee.photo_url)
+        const blob = await res.blob()
+        const b64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(blob)
+        })
         setTstPhotoBase64(b64)
         setTstAuthMethod('manual_facial')
-        setStep(3) // Skip to step 3 to confirm
       } catch {
         setTstPhotoBase64(null)
-        setStep(3)
+        setTstAuthMethod('manual')
       }
     } else {
-      setStep(3)
+      setTstAuthMethod('manual')
     }
+    setStep(3)
   }
 
   const downloadCertificate = async (rec: TrainingWithRelations) => {
@@ -241,7 +262,9 @@ export default function TrainingPage() {
       expiryDate: rec.expiry_date,
       instructorName: rec.instructor_name || "N/A",
       instructorRole: rec.instructor_role || "Técnico de Segurança",
-      signatureBase64: rec.signature_url || undefined
+      participantSignatureBase64: rec.auth_method === 'manual' || rec.auth_method === 'manual_facial' ? rec.signature_url || undefined : undefined,
+      participantPhotoBase64: rec.auth_method === 'facial' ? rec.signature_url || undefined : undefined,
+      participantAuthMethod: rec.auth_method || 'manual',
     })
 
     const safeEmployee = (rec.employee?.full_name || "Certificado")
@@ -379,7 +402,7 @@ export default function TrainingPage() {
               <div>
                   <h2 className="font-black text-slate-800 uppercase tracking-tighter text-xl">Novo Certificado</h2>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                    Etapa {step} de 3 — {step === 1 ? "Dados do Curso" : step === 2 ? "Selecionar Instrutor" : "Assinatura do TST"}
+                    Etapa {step} de 3 — {step === 1 ? "Dados do Curso" : step === 2 ? "Selecionar Instrutor" : "Evidência do Colaborador"}
                   </p>
               </div>
               <button 
@@ -534,11 +557,11 @@ export default function TrainingPage() {
                 {step === 3 && tstSelectedEmployee && (
                   <div className="p-8 space-y-5">
                     {/* Notice for Missing Photo */}
-                    {!tstSelectedEmployee.photo_url && !tstSignatureBase64 && (
+                    {!employees.find(item => item.id === formData.employee_id)?.photo_url && !tstSignatureBase64 && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-3 items-start">
                         <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                         <p className="text-[10px] text-amber-800 font-bold uppercase tracking-widest leading-relaxed">
-                          O instrutor selecionado não possui foto pré-cadastrada. Capture uma biometria agora ou utilize a assinatura manual.
+                          O colaborador selecionado não possui foto pré-cadastrada. Capture uma biometria agora ou utilize a assinatura manual.
                         </p>
                       </div>
                     )}
@@ -570,7 +593,7 @@ export default function TrainingPage() {
                           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
                             {tstPhotoBase64 ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={tstPhotoBase64} alt="Foto do instrutor" className="w-12 h-12 rounded-xl object-cover border border-emerald-200" />
+                              <img src={tstPhotoBase64} alt="Foto do colaborador" className="w-12 h-12 rounded-xl object-cover border border-emerald-200" />
                             ) : (
                               <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
                                 <Camera className="w-5 h-5" />
@@ -581,7 +604,7 @@ export default function TrainingPage() {
                             </p>
                           </div>
                         )}
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tstSelectedEmployee.full_name} — Assine abaixo:</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{employees.find(item => item.id === formData.employee_id)?.full_name || "Colaborador"} — Assine abaixo:</p>
                         {tstSignatureBase64 ? (
                           <div className="relative border-2 border-green-500 rounded-xl overflow-hidden">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
