@@ -115,6 +115,31 @@ function isDeliveryReasonConstraintIssue(error: unknown): boolean {
   return maybeError.code === "23514" && (text.includes("reason") || text.includes("deliveries"));
 }
 
+function isDuplicateCpfIssue(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as SupabaseLikeError & { status?: number };
+  const text = `${maybeError.message || ""} ${maybeError.details || ""}`.toLowerCase();
+  return (
+    maybeError.code === "23505" ||
+    maybeError.status === 409 ||
+    (text.includes("duplicate key") && text.includes("cpf")) ||
+    text.includes("employees_cpf_key")
+  );
+}
+
+function isMissingDeliveryReturnMotiveIssue(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as SupabaseLikeError;
+  const text = `${maybeError.message || ""} ${maybeError.details || ""} ${maybeError.hint || ""}`.toLowerCase();
+  return (
+    maybeError.code === "PGRST204" &&
+    text.includes("return_motive")
+  ) || (
+    maybeError.code === "42703" &&
+    text.includes("return_motive")
+  );
+}
+
 async function getPpeCurrentStock(ppeId: string): Promise<number | null> {
   const { data, error } = await withSessionRetry(() =>
     supabase
@@ -363,7 +388,12 @@ export const api = {
         .select()
     );
     
-    if (error) throw error;
+    if (error) {
+      if (isDuplicateCpfIssue(error)) {
+        throw new Error("Este CPF já está cadastrado. Abra o cadastro existente para editar os dados do colaborador.");
+      }
+      throw error;
+    }
     return data[0] as Employee;
   },
 
@@ -397,7 +427,12 @@ export const api = {
     const result = await response.json();
     console.log('[updateEmployee] Server response:', result);
 
-    if (!response.ok) throw new Error(result.error || 'Erro ao atualizar colaborador');
+    if (!response.ok) {
+      if (isDuplicateCpfIssue(result)) {
+        throw new Error("Este CPF já está cadastrado em outro colaborador.");
+      }
+      throw new Error(result.error || 'Erro ao atualizar colaborador');
+    }
     return result.employee as Employee;
   },
 
@@ -633,8 +668,23 @@ export const api = {
         .update({ returned_at: new Date().toISOString(), return_motive: motive })
         .eq('id', deliveryId)
     );
-    
-    if (error) throw error;
+
+    if (!error) return;
+
+    if (isMissingDeliveryReturnMotiveIssue(error)) {
+      const { error: fallbackError } = await withSessionRetry(() =>
+        supabase
+          .from('deliveries')
+          .update({ returned_at: new Date().toISOString() })
+          .eq('id', deliveryId)
+      );
+
+      if (!fallbackError) return;
+
+      throw fallbackError;
+    }
+
+    throw error;
   },
 
   async returnMultipleDeliveries(deliveryIds: string[], motive: string) {

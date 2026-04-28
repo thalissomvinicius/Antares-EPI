@@ -166,9 +166,10 @@ export default function EmployeesPage() {
         setFormData({ id: undefined, name: "", role: "", department: "", cpf: "", workplace_id: "", photo_url: null, face_descriptor: null })
         setIsModalOpen(false)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar colaborador:", error)
-      toast.error("Erro ao salvar no banco de dados. Verifique a conexão.")
+      const message = error instanceof Error ? error.message : "Erro ao salvar no banco de dados. Verifique a conexão."
+      toast.error(message)
     } finally {
       setIsSaving(false)
       setLoading(false)

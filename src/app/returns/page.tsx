@@ -168,9 +168,10 @@ export default function ReturnsPage() {
       setLastPdfFileName(fileName)
       setIsSaved(true)
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err)
-      alert("Erro ao processar a baixa/substituição.")
+      const message = err instanceof Error ? err.message : "Erro ao processar a baixa/substituição."
+      alert(message)
     } finally {
       setIsSaving(false)
     }
