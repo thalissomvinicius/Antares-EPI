@@ -792,6 +792,13 @@ export default function DeliveryPage() {
                   >
                     {isSaving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : `CONFIRMAR ENTREGA (${cart.length} EPI${cart.length !== 1 ? 'S' : ''})`}
                   </button>
+                  <button
+                    onClick={generateRemoteLink}
+                    disabled={cart.length === 0 || isSaving}
+                    className="w-full bg-white border border-slate-200 text-slate-600 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-slate-50 transition-all disabled:opacity-40"
+                  >
+                    <Link2 className="w-4 h-4 text-blue-500" /> Enviar link para assinatura
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4 animate-in zoom-in-95">
@@ -822,6 +829,13 @@ export default function DeliveryPage() {
                         onCapture={handleFaceCapture}
                         onCancel={() => setAuthMethod('manual')}
                       />
+                      <button
+                        onClick={generateRemoteLink}
+                        disabled={cart.length === 0 || isSaving}
+                        className="w-full bg-white border border-slate-200 text-slate-600 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-slate-50 transition-all disabled:opacity-40"
+                      >
+                        <Link2 className="w-4 h-4 text-blue-500" /> Enviar link para assinatura
+                      </button>
                     </>
                   )}
                 </div>

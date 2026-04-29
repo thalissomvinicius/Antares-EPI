@@ -418,7 +418,7 @@ export const api = {
 
   async createRemoteLink(payload: {
     employee_id: string;
-    type: 'capture' | 'delivery';
+    type: 'capture' | 'delivery' | 'training_signature';
     data?: Record<string, unknown> | null;
     expires_hours?: number;
   }) {

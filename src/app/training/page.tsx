@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CheckCircle2, Award, Calendar, Search, Plus, X, Loader2, FileDown, Camera, PenTool, ShieldAlert, Users } from "lucide-react"
+import { CheckCircle2, Award, Calendar, Search, Plus, X, Loader2, FileDown, Camera, PenTool, ShieldAlert, Users, Link2 } from "lucide-react"
 import { api } from "@/services/api"
 import { Employee, TrainingWithRelations } from "@/types/database"
 import { format, addYears } from "date-fns"
@@ -31,16 +31,18 @@ export default function TrainingPage() {
   const [customTrainingName, setCustomTrainingName] = useState("")
 
   // TST / Instructor Modal State
-  const [step, setStep] = useState<1 | 2 | 3>(1) // 1=Course, 2=Instructor, 3=Signature
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1) // 1=Course, 2=Instructor, 3=Participant, 4=Instructor Signature
   const [tstSelectedEmployee, setTstSelectedEmployee] = useState<Employee | null>(null)
   const [tstSearchTerm, setTstSearchTerm] = useState("")
   const [tstRole, setTstRole] = useState("Técnico de Segurança do Trabalho")
   const [tstAuthMethod, setTstAuthMethod] = useState<'manual' | 'facial' | 'manual_facial'>('manual')
   const [tstSignatureBase64, setTstSignatureBase64] = useState<string | null>(null)
   const [tstPhotoBase64, setTstPhotoBase64] = useState<string | null>(null)
+  const [instructorSignatureBase64, setInstructorSignatureBase64] = useState<string | null>(null)
   const [instructorPhotoBase64, setInstructorPhotoBase64] = useState<string | null>(null)
   const [isFaceCameraTstOpen, setIsFaceCameraTstOpen] = useState(false)
   const tstSigCanvas = useRef<SignatureCanvas | null>(null)
+  const instructorSigCanvas = useRef<SignatureCanvas | null>(null)
 
   const getTrainedEmployee = () => employees.find(item => item.id === formData.employee_id) || null
 
@@ -102,6 +104,11 @@ export default function TrainingPage() {
       return
     }
 
+    if (!instructorSignatureBase64) {
+      toast.error("A assinatura do instrutor tambem e obrigatoria.")
+      return
+    }
+
     let finalTrainingName = formData.training_name
     if (formData.training_name === "Outro" && !customTrainingName.trim()) {
         toast.error("Por favor, especifique o nome do treinamento.")
@@ -140,6 +147,7 @@ export default function TrainingPage() {
         instructorName: tstSelectedEmployee.full_name,
         instructorRole: tstRole,
         instructorPhotoBase64: instructorPhotoBase64 || undefined,
+        instructorSignatureBase64,
         participantSignatureBase64: tstAuthMethod === 'manual' || tstAuthMethod === 'manual_facial' ? tstSignatureBase64 : undefined,
         participantPhotoBase64: tstAuthMethod === 'manual_facial' ? tstPhotoBase64 || undefined : tstAuthMethod === 'facial' ? tstSignatureBase64 : undefined,
         participantAuthMethod: tstAuthMethod,
@@ -210,6 +218,7 @@ export default function TrainingPage() {
     setTstSearchTerm("")
     setTstSignatureBase64(null)
     setTstPhotoBase64(null)
+    setInstructorSignatureBase64(null)
     setInstructorPhotoBase64(null)
     setTstAuthMethod('manual')
     setCustomTrainingName("")
@@ -220,6 +229,7 @@ export default function TrainingPage() {
     setTstSelectedEmployee(emp)
     setTstSignatureBase64(null)
     setTstPhotoBase64(null)
+    setInstructorSignatureBase64(null)
     setInstructorPhotoBase64(null)
     setTstRole(emp.job_title || "Técnico de Segurança do Trabalho")
     
@@ -240,6 +250,66 @@ export default function TrainingPage() {
 
     setTstAuthMethod('manual')
     setStep(3)
+  }
+
+  const generateTrainingRemoteSignatureLink = async () => {
+    const trainedEmployee = getTrainedEmployee()
+    if (!trainedEmployee) {
+      toast.error("Selecione o colaborador treinado antes de gerar o link.")
+      return
+    }
+
+    try {
+      const completionDate = new Date(formData.completion_date)
+      const expiryDate = addYears(completionDate, 1)
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+      const finalTrainingName = formData.training_name === "Outro" ? customTrainingName.trim() : formData.training_name
+
+      const data = await api.createRemoteLink({
+        employee_id: trainedEmployee.id,
+        type: "training_signature",
+        data: {
+          trainingName: finalTrainingName || formData.training_name,
+          completionDate: formData.completion_date,
+          expiryDate: format(expiryDate, "yyyy-MM-dd"),
+        },
+      })
+
+      const url = `${baseUrl}/training/remote?t=${data.link.token}`
+      await navigator.clipboard.writeText(url)
+      toast.success("Link de assinatura do treinamento copiado. Valido por 24h e uso unico.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao gerar link."
+      toast.error(message)
+    }
+  }
+
+  const generateInstructorRemoteSignatureLink = async () => {
+    if (!tstSelectedEmployee) {
+      toast.error("Selecione o instrutor antes de gerar o link.")
+      return
+    }
+
+    try {
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+      const finalTrainingName = formData.training_name === "Outro" ? customTrainingName.trim() : formData.training_name
+      const data = await api.createRemoteLink({
+        employee_id: tstSelectedEmployee.id,
+        type: "training_signature",
+        data: {
+          trainingName: `Instrutor - ${finalTrainingName || formData.training_name}`,
+          completionDate: formData.completion_date,
+          signerRole: "instructor",
+        },
+      })
+
+      const url = `${baseUrl}/training/remote?t=${data.link.token}`
+      await navigator.clipboard.writeText(url)
+      toast.success("Link de assinatura do instrutor copiado. Valido por 24h e uso unico.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao gerar link."
+      toast.error(message)
+    }
   }
 
   const downloadCertificate = async (rec: TrainingWithRelations) => {
@@ -391,7 +461,7 @@ export default function TrainingPage() {
               <div>
                   <h2 className="font-black text-slate-800 uppercase tracking-tighter text-xl">Novo Certificado</h2>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                    Etapa {step} de 3 — {step === 1 ? "Dados do Curso" : step === 2 ? "Selecionar Instrutor" : "Evidência do Colaborador"}
+                    Etapa {step} de 4 - {step === 1 ? "Dados do Curso" : step === 2 ? "Selecionar Instrutor" : step === 3 ? "Assinatura do Colaborador" : "Assinatura do Instrutor"}
                   </p>
               </div>
               <button 
@@ -654,6 +724,13 @@ export default function TrainingPage() {
                             </button>
                           </div>
                         )}
+                        <button
+                          onClick={generateTrainingRemoteSignatureLink}
+                          className="w-full py-3 text-[10px] font-black text-slate-600 uppercase tracking-widest border border-slate-200 rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Link2 className="w-4 h-4 text-blue-500" />
+                          Gerar link para assinatura do colaborador
+                        </button>
                       </div>
                     )}
 
@@ -690,8 +767,90 @@ export default function TrainingPage() {
                         ← Voltar
                       </button>
                       <button
-                        onClick={handleAddTraining}
+                        onClick={() => setStep(4)}
                         disabled={!tstSignatureBase64 || (tstAuthMethod === 'manual_facial' && !tstPhotoBase64) || isSaving}
+                        className="flex-1 py-4 text-[10px] font-black text-white bg-[#8B1A1A] hover:bg-[#681313] rounded-xl uppercase tracking-widest transition-all shadow-lg shadow-red-900/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Proxima: Assinatura do Instrutor
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {step === 4 && tstSelectedEmployee && (
+                  <div className="p-8 space-y-5">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instrutor responsavel</p>
+                      <p className="font-black text-slate-800 text-sm uppercase mt-1">{tstSelectedEmployee.full_name}</p>
+                      <p className="text-xs font-bold text-slate-500 mt-0.5">{tstRole}</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instrutor - assine abaixo:</p>
+                      {instructorSignatureBase64 ? (
+                        <div className="relative border-2 border-green-500 rounded-xl overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={instructorSignatureBase64} alt="Assinatura do instrutor" className="w-full h-32 object-contain bg-slate-50" />
+                          <button
+                            onClick={() => setInstructorSignatureBase64(null)}
+                            title="Remover assinatura"
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow-lg"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="border-2 border-dashed border-slate-300 rounded-xl overflow-hidden bg-slate-50">
+                          <SignatureCanvas
+                            ref={instructorSigCanvas}
+                            canvasProps={{ className: "w-full h-32 touch-none" }}
+                            penColor="#1e293b"
+                          />
+                        </div>
+                      )}
+
+                      {!instructorSignatureBase64 && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => instructorSigCanvas.current?.clear()}
+                            className="flex-1 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                          >
+                            Limpar
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (instructorSigCanvas.current?.isEmpty()) {
+                                toast.error("O instrutor precisa assinar antes de finalizar.")
+                                return
+                              }
+                              setInstructorSignatureBase64(instructorSigCanvas.current?.toDataURL('image/png') || null)
+                            }}
+                            className="flex-1 py-3 text-[10px] font-black text-white bg-[#8B1A1A] uppercase tracking-widest rounded-xl hover:bg-[#681313] transition-all"
+                          >
+                            Confirmar Assinatura
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        onClick={generateInstructorRemoteSignatureLink}
+                        className="w-full py-3 text-[10px] font-black text-slate-600 uppercase tracking-widest border border-slate-200 rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Link2 className="w-4 h-4 text-blue-500" />
+                        Gerar link para assinatura do instrutor
+                      </button>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        onClick={() => setStep(3)}
+                        className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        onClick={handleAddTraining}
+                        disabled={!instructorSignatureBase64 || isSaving}
                         className="flex-1 py-4 text-[10px] font-black text-white bg-[#8B1A1A] hover:bg-[#681313] rounded-xl uppercase tracking-widest transition-all shadow-lg shadow-red-900/20 disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}

@@ -839,6 +839,7 @@ export interface TrainingCertificateData {
   signatureBase64?: string
   photoBase64?: string
   instructorPhotoBase64?: string
+  instructorSignatureBase64?: string
   participantSignatureBase64?: string
   participantPhotoBase64?: string
   participantAuthMethod?: AuthMethod
@@ -1157,6 +1158,39 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
   })
 
   // Informações Legais (Footer Verso)
+  if (data.instructorSignatureBase64) {
+    const signY = 138
+    const signCenterX = centerX
+    const signLineW = 90
+
+    doc.setDrawColor(139, 0, 0)
+    doc.setLineWidth(0.5)
+    doc.line(signCenterX - signLineW / 2, signY, signCenterX + signLineW / 2, signY)
+
+    try {
+      const imgProps = doc.getImageProperties(data.instructorSignatureBase64)
+      const ratio = imgProps.width / imgProps.height
+      let drawH = 16
+      let drawW = drawH * ratio
+      if (drawW > signLineW) {
+        drawW = signLineW
+        drawH = drawW / ratio
+      }
+      doc.addImage(data.instructorSignatureBase64, "PNG", signCenterX - drawW / 2, signY - drawH - 1, drawW, drawH)
+    } catch {}
+
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(10)
+    doc.setTextColor(85, 85, 85)
+    doc.text((data.instructorName || "Instrutor").toUpperCase(), signCenterX, signY + 5, { align: "center" })
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    doc.text(data.instructorRole || "Instrutor", signCenterX, signY + 10, { align: "center" })
+    doc.setFontSize(8)
+    doc.setTextColor(119, 119, 119)
+    doc.text("Assinatura do instrutor", signCenterX, signY + 15, { align: "center" })
+  }
+
   const versoFooterY = pageHeight - 45;
   
   // Draw Box
