@@ -32,7 +32,8 @@ function RemoteTrainingSignatureContent() {
   const [employee, setEmployee] = useState<RemoteEmployee | null>(null)
   const [data, setData] = useState<RemoteTrainingData>({})
   const [cpfInput, setCpfInput] = useState("")
-  const [authMethod, setAuthMethod] = useState<"manual" | "facial">("manual")
+  const [authMethod, setAuthMethod] = useState<"manual" | "facial" | "manual_facial">("manual_facial")
+  const [capturedPhotoBase64, setCapturedPhotoBase64] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
@@ -174,17 +175,39 @@ function RemoteTrainingSignatureContent() {
           <p className="text-xs text-slate-500 mt-1">{employee?.full_name}</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
           <button onClick={() => setAuthMethod("manual")} className={`py-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 ${authMethod === "manual" ? "bg-white text-slate-800 shadow" : "text-slate-400"}`}>
             <PenTool className="w-4 h-4" /> Manual
+          </button>
+          <button onClick={() => { setAuthMethod("manual_facial"); setCapturedPhotoBase64(null); }} className={`py-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 ${authMethod === "manual_facial" ? "bg-white text-emerald-700 shadow" : "text-slate-400"}`}>
+            <Camera className="w-4 h-4" /> Foto + Assin.
           </button>
           <button onClick={() => setAuthMethod("facial")} className={`py-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 ${authMethod === "facial" ? "bg-white text-blue-700 shadow" : "text-slate-400"}`}>
             <Fingerprint className="w-4 h-4" /> Facial
           </button>
         </div>
 
-        {authMethod === "manual" ? (
+        {(authMethod === "manual" || authMethod === "manual_facial") ? (
           <div className="space-y-3">
+            {authMethod === "manual_facial" && !capturedPhotoBase64 && employee?.face_descriptor && (
+              <FaceCamera
+                targetDescriptor={new Float32Array(employee.face_descriptor)}
+                onCapture={(_, img) => setCapturedPhotoBase64(img)}
+                onCancel={() => setAuthMethod("manual")}
+              />
+            )}
+            {authMethod === "manual_facial" && capturedPhotoBase64 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={capturedPhotoBase64} alt="Foto capturada" className="w-12 h-12 rounded-xl object-cover border border-emerald-200" />
+                <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest leading-relaxed">Foto confirmada. Agora assine abaixo para concluir.</p>
+              </div>
+            )}
+            {authMethod === "manual_facial" && !employee?.face_descriptor && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center text-xs font-bold text-amber-800">
+                Biometria facial nao cadastrada. Use assinatura manual.
+              </div>
+            )}
             <div className="border-2 border-dashed border-slate-200 rounded-xl overflow-hidden bg-slate-50 h-48">
               <SignatureCanvas ref={sigCanvas} canvasProps={{ className: "w-full h-full touch-none" }} penColor="#1e293b" />
             </div>
@@ -199,7 +222,11 @@ function RemoteTrainingSignatureContent() {
                     toast.error("Assine antes de confirmar.")
                     return
                   }
-                  void saveSignature(sigCanvas.current!.toDataURL("image/png"))
+                  if (authMethod === "manual_facial" && employee?.face_descriptor && !capturedPhotoBase64) {
+                    toast.error("Capture a foto antes de confirmar.")
+                    return
+                  }
+                  void saveSignature(sigCanvas.current!.toDataURL("image/png"), capturedPhotoBase64)
                 }}
                 className="flex-1 py-3 rounded-xl bg-[#8B1A1A] text-white font-black uppercase tracking-widest text-[10px] disabled:opacity-50"
               >

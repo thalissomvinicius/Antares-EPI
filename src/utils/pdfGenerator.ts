@@ -1176,7 +1176,8 @@ export async function generateTrainingCertificate(data: TrainingCertificateData)
         drawW = signLineW
         drawH = drawW / ratio
       }
-      doc.addImage(data.instructorSignatureBase64, "PNG", signCenterX - drawW / 2, signY - drawH - 1, drawW, drawH)
+      const fmt = data.instructorSignatureBase64.startsWith("data:image/png") ? "PNG" : "JPEG"
+      doc.addImage(data.instructorSignatureBase64, fmt, signCenterX - drawW / 2, signY - drawH - 1, drawW, drawH)
     } catch {}
 
     doc.setFont("helvetica", "bold")

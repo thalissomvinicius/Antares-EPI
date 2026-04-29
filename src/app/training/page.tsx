@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { CheckCircle2, Award, Calendar, Search, Plus, X, Loader2, FileDown, Camera, PenTool, ShieldAlert, Users, Link2 } from "lucide-react"
 import { api } from "@/services/api"
 import { Employee, TrainingWithRelations } from "@/types/database"
@@ -12,6 +12,12 @@ import { FaceCamera } from "@/components/ui/FaceCamera"
 import { generateTrainingCertificate } from "@/utils/pdfGenerator"
 import { usePdfActionDialog } from "@/hooks/usePdfActionDialog"
 import { generateAuditCode } from "@/utils/auditCode"
+
+type RemoteSignatureEvidence = {
+  signatureBase64: string
+  photoBase64?: string | null
+  authMethod?: 'manual' | 'facial' | 'manual_facial'
+}
 
 export default function TrainingPage() {
   const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
@@ -40,6 +46,9 @@ export default function TrainingPage() {
   const [tstPhotoBase64, setTstPhotoBase64] = useState<string | null>(null)
   const [instructorSignatureBase64, setInstructorSignatureBase64] = useState<string | null>(null)
   const [instructorPhotoBase64, setInstructorPhotoBase64] = useState<string | null>(null)
+  const [participantRemoteToken, setParticipantRemoteToken] = useState<string | null>(null)
+  const [instructorRemoteToken, setInstructorRemoteToken] = useState<string | null>(null)
+  const [isCheckingRemoteSignatures, setIsCheckingRemoteSignatures] = useState(false)
   const [isFaceCameraTstOpen, setIsFaceCameraTstOpen] = useState(false)
   const tstSigCanvas = useRef<SignatureCanvas | null>(null)
   const instructorSigCanvas = useRef<SignatureCanvas | null>(null)
@@ -220,6 +229,8 @@ export default function TrainingPage() {
     setTstPhotoBase64(null)
     setInstructorSignatureBase64(null)
     setInstructorPhotoBase64(null)
+    setParticipantRemoteToken(null)
+    setInstructorRemoteToken(null)
     setTstAuthMethod('manual')
     setCustomTrainingName("")
     setFormData(prev => ({ ...prev, training_name: "Uso e Guarda de EPI (NR-06)" }))
@@ -231,6 +242,8 @@ export default function TrainingPage() {
     setTstPhotoBase64(null)
     setInstructorSignatureBase64(null)
     setInstructorPhotoBase64(null)
+    setParticipantRemoteToken(null)
+    setInstructorRemoteToken(null)
     setTstRole(emp.job_title || "Técnico de Segurança do Trabalho")
     
     if (emp.photo_url) {
@@ -276,6 +289,7 @@ export default function TrainingPage() {
       })
 
       const url = `${baseUrl}/training/remote?t=${data.link.token}`
+      setParticipantRemoteToken(data.link.token)
       await navigator.clipboard.writeText(url)
       toast.success("Link de assinatura do treinamento copiado. Valido por 24h e uso unico.")
     } catch (err: unknown) {
@@ -304,6 +318,7 @@ export default function TrainingPage() {
       })
 
       const url = `${baseUrl}/training/remote?t=${data.link.token}`
+      setInstructorRemoteToken(data.link.token)
       await navigator.clipboard.writeText(url)
       toast.success("Link de assinatura do instrutor copiado. Valido por 24h e uso unico.")
     } catch (err: unknown) {
@@ -311,6 +326,72 @@ export default function TrainingPage() {
       toast.error(message)
     }
   }
+
+  const applyRemoteSignature = useCallback((target: "participant" | "instructor", evidence: RemoteSignatureEvidence) => {
+    if (target === "participant") {
+      const method = evidence.authMethod || "manual"
+      setTstAuthMethod(method)
+      setTstSignatureBase64(evidence.signatureBase64)
+      setTstPhotoBase64(evidence.photoBase64 || null)
+      setIsFaceCameraTstOpen(false)
+      return
+    }
+
+    setInstructorSignatureBase64(evidence.signatureBase64)
+  }, [])
+
+  const checkRemoteSignature = useCallback(async (token: string, target: "participant" | "instructor") => {
+    const res = await fetch(`/api/remote-links?token=${token}&include_completed=1`)
+    const payload = await res.json()
+    if (!res.ok || payload.link?.status !== "completed") return false
+
+    const evidence = payload.link.data as RemoteSignatureEvidence | null
+    if (!evidence?.signatureBase64) return false
+
+    applyRemoteSignature(target, evidence)
+    return true
+  }, [applyRemoteSignature])
+
+  const syncRemoteSignatures = useCallback(async () => {
+    if (!participantRemoteToken && !instructorRemoteToken) return
+
+    try {
+      setIsCheckingRemoteSignatures(true)
+      await Promise.all([
+        participantRemoteToken && !tstSignatureBase64
+          ? checkRemoteSignature(participantRemoteToken, "participant")
+          : Promise.resolve(false),
+        instructorRemoteToken && !instructorSignatureBase64
+          ? checkRemoteSignature(instructorRemoteToken, "instructor")
+          : Promise.resolve(false),
+      ])
+    } catch (err) {
+      console.error("Erro ao consultar assinaturas remotas:", err)
+    } finally {
+      setIsCheckingRemoteSignatures(false)
+    }
+  }, [checkRemoteSignature, instructorRemoteToken, instructorSignatureBase64, participantRemoteToken, tstSignatureBase64])
+
+  useEffect(() => {
+    if (!isModalOpen || (!participantRemoteToken && !instructorRemoteToken)) return
+    if (
+      (!participantRemoteToken || tstSignatureBase64) &&
+      (!instructorRemoteToken || instructorSignatureBase64)
+    ) return
+
+    const timer = window.setInterval(() => {
+      void syncRemoteSignatures()
+    }, 5000)
+
+    const immediate = window.setTimeout(() => {
+      void syncRemoteSignatures()
+    }, 0)
+
+    return () => {
+      window.clearInterval(timer)
+      window.clearTimeout(immediate)
+    }
+  }, [isModalOpen, participantRemoteToken, instructorRemoteToken, tstSignatureBase64, instructorSignatureBase64, syncRemoteSignatures])
 
   const downloadCertificate = async (rec: TrainingWithRelations) => {
     const pdfBlob = await generateTrainingCertificate({
@@ -731,6 +812,11 @@ export default function TrainingPage() {
                           <Link2 className="w-4 h-4 text-blue-500" />
                           Gerar link para assinatura do colaborador
                         </button>
+                        {participantRemoteToken && (
+                          <div className={`rounded-xl border p-3 text-[10px] font-black uppercase tracking-widest ${tstSignatureBase64 ? "bg-green-50 border-green-200 text-green-700" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
+                            {tstSignatureBase64 ? "Assinatura remota do colaborador recebida." : "Aguardando assinatura remota do colaborador..."}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -839,6 +925,20 @@ export default function TrainingPage() {
                         <Link2 className="w-4 h-4 text-blue-500" />
                         Gerar link para assinatura do instrutor
                       </button>
+                      {instructorRemoteToken && (
+                        <div className={`rounded-xl border p-3 text-[10px] font-black uppercase tracking-widest ${instructorSignatureBase64 ? "bg-green-50 border-green-200 text-green-700" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
+                          {instructorSignatureBase64 ? "Assinatura remota do instrutor recebida." : "Aguardando assinatura remota do instrutor..."}
+                        </div>
+                      )}
+                      {(participantRemoteToken || instructorRemoteToken) && (
+                        <button
+                          onClick={() => void syncRemoteSignatures()}
+                          disabled={isCheckingRemoteSignatures}
+                          className="w-full py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest border border-slate-200 rounded-xl hover:bg-slate-50 transition-all disabled:opacity-50"
+                        >
+                          {isCheckingRemoteSignatures ? "Consultando assinaturas..." : "Atualizar assinaturas remotas"}
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex gap-3 pt-4">

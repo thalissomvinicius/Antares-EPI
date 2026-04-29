@@ -22,12 +22,14 @@ export async function POST(request: NextRequest) {
       ? { ...(data || {}), remoteType: "training_signature" }
       : data || null
 
-    await supabaseAdmin
+    if (type !== "training_signature") {
+      await supabaseAdmin
       .from("remote_links")
       .update({ status: "expired" })
       .eq("employee_id", employee_id)
       .eq("type", dbType)
-      .eq("status", "pending")
+        .eq("status", "pending")
+    }
 
     const token = crypto.randomBytes(32).toString("hex")
     const expires_at = new Date(Date.now() + expires_hours * 60 * 60 * 1000).toISOString()
@@ -62,6 +64,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get("token")
+    const includeCompleted = searchParams.get("include_completed") === "1"
 
     if (!token) {
       return NextResponse.json({ error: "Token não informado" }, { status: 400 })
@@ -77,6 +80,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Link não encontrado ou inválido.", status: "invalid" }, { status: 404 })
     }
 
+    if (link.status === "completed" && includeCompleted) {
+      return NextResponse.json({ link })
+    }
+
     if (new Date(link.expires_at) < new Date()) {
       await supabaseAdmin
         .from("remote_links")
@@ -86,7 +93,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Este link expirou. Solicite um novo link ao responsável.", status: "expired" }, { status: 410 })
     }
 
-    if (link.status === "completed") {
+    if (link.status === "completed" && !includeCompleted) {
       return NextResponse.json({ error: "Este link já foi utilizado.", status: "completed" }, { status: 410 })
     }
 
