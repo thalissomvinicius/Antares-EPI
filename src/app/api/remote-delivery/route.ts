@@ -1,6 +1,50 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+type SupabaseLikeError = {
+  code?: string;
+  details?: string | null;
+  hint?: string | null;
+  message?: string;
+};
+
+function normalizeDeliveryReason(reason: string) {
+  const normalized = reason
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+  if (normalized.includes("primeira") || normalized.includes("prim")) return "Primeira Entrega";
+  if (normalized.includes("substitu")) return "Substituição (Desgaste/Validade)";
+  if (normalized.includes("perda")) return "Perda";
+  if (normalized.includes("dano")) return "Dano";
+  return "Primeira Entrega";
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const maybeError = error as SupabaseLikeError;
+    return maybeError.message || maybeError.details || maybeError.hint || JSON.stringify(error);
+  }
+  return "Erro interno do servidor";
+}
+
+function isDeliverySchemaCompatibilityIssue(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as SupabaseLikeError;
+  const text = `${maybeError.message || ""} ${maybeError.details || ""} ${maybeError.hint || ""}`.toLowerCase();
+
+  return (
+    maybeError.code === "PGRST204" ||
+    maybeError.code === "42703" ||
+    text.includes("schema cache") ||
+    text.includes("could not find the") ||
+    (text.includes("column") && (text.includes("auth_method") || text.includes("workplace_id")))
+  );
+}
+
 export async function POST(req: Request) {
   try {
     // Inicializa o cliente DENTRO da função para evitar erros de build na Vercel 
@@ -20,7 +64,7 @@ export async function POST(req: Request) {
     const employee_id = formData.get('employee_id') as string;
     const ppe_id = formData.get('ppe_id') as string;
     const workplace_id = formData.get('workplace_id') as string | null;
-    const reason = formData.get('reason') as string;
+    const reason = normalizeDeliveryReason(formData.get('reason') as string || 'Primeira Entrega');
     const quantity = parseInt(formData.get('quantity') as string || '1');
     const ip_address = formData.get('ip_address') as string;
     const auth_method = formData.get('auth_method') as string || 'manual';
@@ -88,24 +132,51 @@ export async function POST(req: Request) {
           : null;
 
     // 2. Insere a entrega no banco usando a chave de Admin
-    const { data, error } = await supabaseAdmin
+    const insertPayload = {
+      employee_id,
+      ppe_id,
+      workplace_id: workplace_id === 'null' || !workplace_id ? null : workplace_id,
+      reason,
+      quantity,
+      ip_address,
+      signature_url: signatureUrl,
+      auth_method,
+      delivery_date: new Date().toISOString()
+    };
+
+    let { data, error } = await supabaseAdmin
       .from('deliveries')
-      .insert([{
-        employee_id,
-        ppe_id,
-        workplace_id: workplace_id === 'null' || !workplace_id ? null : workplace_id,
-        reason,
-        quantity,
-        ip_address,
-        signature_url: signatureUrl,
-        auth_method, // Assuming the column will be added
-        delivery_date: new Date().toISOString()
-      }])
+      .insert([insertPayload])
       .select();
+
+    if (error && isDeliverySchemaCompatibilityIssue(error)) {
+      const fallbackPayload = {
+        employee_id: insertPayload.employee_id,
+        ppe_id: insertPayload.ppe_id,
+        reason: insertPayload.reason,
+        quantity: insertPayload.quantity,
+        ip_address: insertPayload.ip_address,
+        signature_url: insertPayload.signature_url,
+        delivery_date: insertPayload.delivery_date,
+      };
+
+      const fallbackResult = await supabaseAdmin
+        .from('deliveries')
+        .insert([fallbackPayload])
+        .select();
+
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
     
     if (error) {
       console.error("Database insert error:", error);
-      throw error;
+      throw new Error(getErrorMessage(error));
+    }
+
+    const savedDelivery = data?.[0];
+    if (!savedDelivery) {
+      throw new Error("Entrega remota nao retornou registro salvo.");
     }
 
     const { data: afterStockData, error: afterStockError } = await supabaseAdmin
@@ -167,11 +238,11 @@ export async function POST(req: Request) {
         .eq('token', token)
     }
     
-    return NextResponse.json({ success: true, data: data[0] });
+    return NextResponse.json({ success: true, data: savedDelivery });
 
   } catch (error: unknown) {
     console.error('Remote delivery save error:', error);
-    const message = error instanceof Error ? error.message : "Erro interno do servidor";
+    const message = getErrorMessage(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

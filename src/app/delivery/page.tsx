@@ -77,6 +77,7 @@ export default function DeliveryPage() {
 
   // Biometria Facial
   const [authMethod, setAuthMethod] = useState<'manual' | 'facial' | 'manual_facial'>('manual')
+  const [capturedPhotoBase64, setCapturedPhotoBase64] = useState<string | null>(null)
 
   useEffect(() => {
     const captureMetadata = async () => {
@@ -214,6 +215,7 @@ export default function DeliveryPage() {
 
   const handleEmployeeChange = (empId: string) => {
     setSelectedEmployeeId(empId)
+    setCapturedPhotoBase64(null)
     const emp = employees.find(e => e.id === empId)
     if (emp && emp.workplace_id) {
         setSelectedWorkplaceId(emp.workplace_id)
@@ -296,21 +298,6 @@ export default function DeliveryPage() {
     }
   }
 
-  const getSelectedEmployeePhotoBase64 = useCallback(async () => {
-    if (!selectedEmployee?.photo_url) return undefined
-    try {
-      const photoResponse = await fetch(selectedEmployee.photo_url)
-      const photoBlob = await photoResponse.blob()
-      return await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.readAsDataURL(photoBlob)
-      })
-    } catch {
-      return undefined
-    }
-  }, [selectedEmployee])
-
   const saveDelivery = useCallback(async (signatureDataUrl: string) => {
     if (cart.length === 0) {
       toast.error("Adicione pelo menos um EPI à lista de entrega.")
@@ -326,7 +313,7 @@ export default function DeliveryPage() {
       const response = await fetch(signatureDataUrl)
       const blob = await response.blob()
       const signatureFile = new File([blob], "signature.png", { type: "image/png" })
-      const photoBase64 = authMethod === 'manual_facial' ? await getSelectedEmployeePhotoBase64() : undefined
+      const photoBase64 = authMethod === 'manual_facial' ? capturedPhotoBase64 || undefined : undefined
       const persistedAuthMethod: 'manual' | 'facial' = authMethod === 'manual_facial' ? 'manual' : authMethod
 
       const savedDeliveries: Delivery[] = []
@@ -426,11 +413,11 @@ export default function DeliveryPage() {
     } finally {
       setIsSaving(false)
     }
-  }, [selectedEmployeeId, selectedWorkplaceId, cart, ipAddress, location, authMethod, selectedEmployee, selectedWorkplace, deliveryDate, getSelectedEmployeePhotoBase64, validateCartForDelivery])
+  }, [selectedEmployeeId, selectedWorkplaceId, cart, ipAddress, location, authMethod, capturedPhotoBase64, selectedEmployee, selectedWorkplace, deliveryDate, validateCartForDelivery])
 
   const handleManualSave = () => {
-    if (authMethod === 'manual_facial' && !selectedEmployee?.photo_url) {
-      toast.error("Cadastre uma foto do colaborador antes de usar Foto + Assinatura.")
+    if (authMethod === 'manual_facial' && !capturedPhotoBase64) {
+      toast.error("Faça a verificação facial antes de confirmar a assinatura.")
       return
     }
     if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
@@ -1030,19 +1017,19 @@ export default function DeliveryPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 bg-slate-100 p-1.5 rounded-2xl">
                 <button 
-                  onClick={() => setAuthMethod('manual')}
+                  onClick={() => { setAuthMethod('manual'); setCapturedPhotoBase64(null) }}
                   className={`py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all ${authMethod === 'manual' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   <PenLine className="w-4 h-4" /> Assinatura na Tela
                 </button>
                 <button 
-                  onClick={() => setAuthMethod('manual_facial')}
+                  onClick={() => { setAuthMethod('manual_facial'); setCapturedPhotoBase64(null) }}
                   className={`py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all ${authMethod === 'manual_facial' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   <Camera className="w-4 h-4" /> Foto + Assinatura
                 </button>
                 <button 
-                  onClick={() => setAuthMethod('facial')}
+                  onClick={() => { setAuthMethod('facial'); setCapturedPhotoBase64(null) }}
                   className={`py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all ${authMethod === 'facial' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   <Fingerprint className="w-4 h-4" /> Biometria Facial
@@ -1051,20 +1038,45 @@ export default function DeliveryPage() {
 
               {authMethod === 'manual' || authMethod === 'manual_facial' ? (
                 <div className="space-y-4 animate-in fade-in">
-                  {authMethod === 'manual_facial' && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
-                      {selectedEmployee?.photo_url ? (
-                        <Image src={selectedEmployee.photo_url} alt="Foto do colaborador" width={44} height={44} className="w-11 h-11 rounded-xl object-cover border border-emerald-200" unoptimized />
-                      ) : (
-                        <div className="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
-                          <Camera className="w-5 h-5" />
+                  {authMethod === 'manual_facial' && !capturedPhotoBase64 && (
+                    !selectedEmployee?.face_descriptor ? (
+                      <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center space-y-4">
+                        <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                          <ShieldAlert className="w-8 h-8 text-amber-600" />
                         </div>
-                      )}
+                        <div>
+                          <p className="text-amber-800 font-black uppercase tracking-tight text-lg">Biometria Indisponivel</p>
+                          <p className="text-amber-600 text-sm mt-1 leading-relaxed">Cadastre a foto facial mestre do colaborador para usar Foto + Assinatura.</p>
+                        </div>
+                        <button onClick={() => setAuthMethod('manual')} className="mt-4 bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-colors">
+                          Usar Assinatura Manual
+                        </button>
+                      </div>
+                    ) : (
+                      <FaceCamera
+                        targetDescriptor={new Float32Array(selectedEmployee.face_descriptor)}
+                        onCapture={(_, img) => setCapturedPhotoBase64(img)}
+                        onCancel={() => { setAuthMethod('manual'); setCapturedPhotoBase64(null) }}
+                      />
+                    )
+                  )}
+                  {authMethod === 'manual_facial' && capturedPhotoBase64 && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+                      <Image src={capturedPhotoBase64} alt="Foto capturada agora" width={44} height={44} className="w-11 h-11 rounded-xl object-cover border border-emerald-200" unoptimized />
                       <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest leading-relaxed">
-                        O PDF vai sair com a foto cadastrada do colaborador e a assinatura manual abaixo.
+                        Identidade verificada. O PDF vai sair com a foto capturada agora e a assinatura manual abaixo.
                       </p>
+                      <button
+                        onClick={() => setCapturedPhotoBase64(null)}
+                        title="Refazer foto"
+                        className="ml-auto p-2 text-emerald-800 hover:bg-emerald-100 rounded-lg transition-all"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
                     </div>
                   )}
+                  {(authMethod === 'manual' || capturedPhotoBase64) && (
+                    <>
                   <div className="flex justify-between items-end px-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Área de Assinatura</label>
                     <button onClick={clearSignature} className="text-[10px] font-black text-[#8B1A1A] uppercase hover:underline italic bg-red-50 px-3 py-1 rounded-lg">Limpar Traço</button>
@@ -1090,6 +1102,8 @@ export default function DeliveryPage() {
                   >
                     <Link2 className="w-4 h-4 text-blue-500" /> Enviar link para assinatura
                   </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4 animate-in zoom-in-95">

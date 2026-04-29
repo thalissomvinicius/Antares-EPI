@@ -85,7 +85,7 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel, cancelLabel 
     const canvas = document.createElement("canvas")
     canvas.width = 600
     canvas.height = 600
-    const ctx = canvas.getContext("2d")
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })
     if (!ctx) return null
     
     ctx.save()
@@ -156,7 +156,7 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel, cancelLabel 
         new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })
       ).withFaceLandmarks().withFaceDescriptor()
 
-      const ctx = canvasRef.current.getContext('2d')
+      const ctx = canvasRef.current.getContext('2d', { willReadFrequently: true })
 
       if (detections) {
         setWarning(null)
@@ -345,6 +345,7 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel, cancelLabel 
   if (capturedImage) {
     return (
       <div className="bg-slate-900 rounded-2xl sm:rounded-3xl overflow-hidden relative flex items-center justify-center border-4 border-green-600 face-camera-preview">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={capturedImage} alt="Foto capturada" className="w-full h-full object-cover face-camera-preview-img" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 bg-green-900/90 backdrop-blur-md rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center gap-3 border border-green-600/50">
