@@ -443,6 +443,13 @@ export default function EmployeesPage() {
 
     try {
       setIsGeneratingPdf(true)
+      const signedDocuments = await api.getSignedDocuments()
+      const getSignedDocumentForDelivery = (deliveryId: string) =>
+        signedDocuments.find((document) =>
+          document.delivery_id === deliveryId ||
+          document.delivery_ids?.includes(deliveryId)
+        )
+
       const pdfBlob = await generateNR06PDF({
         employeeName: emp.full_name,
         employeeCpf: emp.cpf,
@@ -450,16 +457,23 @@ export default function EmployeesPage() {
         employeeDepartment: getDepartmentName(emp.department),
         workplaceName: getWorkplaceName(emp.workplace_id),
         admissionDate: format(new Date(emp.admission_date), "dd/MM/yyyy"),
-        items: employeeHistory.map(d => ({
-          deliveryDate: format(new Date(d.delivery_date), "dd/MM/yyyy"),
-          ppeName: d.ppe?.name || "N/A",
-          caNr: d.ppe?.ca_number || "N/A",
-          quantity: d.quantity,
-          reason: d.reason,
-          returnedAt: d.returned_at,
-          isExpired: d.ppe ? isPast(addDays(new Date(d.delivery_date), d.ppe.lifespan_days || 180)) : false,
-          signatureUrl: d.signature_url || null,
-        })),
+        items: employeeHistory.map(d => {
+          const signedDocument = getSignedDocumentForDelivery(d.id)
+          const authMethod = (signedDocument?.auth_method || d.auth_method || null) as 'manual' | 'facial' | 'manual_facial' | null
+
+          return {
+            deliveryDate: format(new Date(d.delivery_date), "dd/MM/yyyy"),
+            ppeName: d.ppe?.name || "N/A",
+            caNr: d.ppe?.ca_number || "N/A",
+            quantity: d.quantity,
+            reason: d.reason,
+            returnedAt: d.returned_at,
+            isExpired: d.ppe ? isPast(addDays(new Date(d.delivery_date), d.ppe.lifespan_days || 180)) : false,
+            authMethod,
+            signatureUrl: d.signature_url || signedDocument?.signature_url || null,
+            photoEvidenceUrl: signedDocument?.photo_evidence_url || null,
+          }
+        }),
         tstSigner: {
           name: tstName,
           role: tstRole,

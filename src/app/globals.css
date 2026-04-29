@@ -134,16 +134,20 @@
 /* FaceCamera component styles */
 .face-camera-container {
   min-height: 280px;
-  max-height: 65vh;
+  height: min(720px, 75vh);
+  max-height: 75vh;
+  width: 100%;
 }
 
 .face-camera-preview {
   min-height: 280px;
-  max-height: 60vh;
+  height: min(720px, 75vh);
+  max-height: 75vh;
+  width: 100%;
 }
 
 .face-camera-preview-img {
-  max-height: 60vh;
+  max-height: 75vh;
 }
 
 .face-camera-mirror {
@@ -152,5 +156,21 @@
 
 .face-camera-video {
   min-height: 280px;
-  max-height: 65vh;
+  height: 100%;
+  max-height: 75vh;
+}
+
+@media (max-width: 640px) {
+  .face-camera-container,
+  .face-camera-preview {
+    min-height: calc(100dvh - 24px);
+    height: calc(100dvh - 24px);
+    max-height: none;
+  }
+
+  .face-camera-video,
+  .face-camera-preview-img {
+    min-height: calc(100dvh - 24px);
+    max-height: none;
+  }
 }

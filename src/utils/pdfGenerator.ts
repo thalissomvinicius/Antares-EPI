@@ -528,8 +528,11 @@ export interface NR06PDFData {
     reason: string
     returnedAt?: string | null
     isExpired: boolean
+    authMethod?: AuthMethod | null
     signatureUrl?: string | null
     signatureBase64?: string
+    photoEvidenceUrl?: string | null
+    photoBase64?: string
   }[]
   tstSigner?: {
     name: string
@@ -567,7 +570,9 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
 
   const itemsWithSigs = await Promise.all(
     data.items.map(async (item) => {
-      if (item.signatureBase64) return item
+      let signatureBase64 = item.signatureBase64
+      let photoBase64 = item.photoBase64
+
       if (item.signatureUrl) {
         try {
           const res = await fetch(item.signatureUrl)
@@ -577,9 +582,24 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
             reader.onloadend = () => resolve(reader.result as string)
             reader.readAsDataURL(blob)
           })
-          return { ...item, signatureBase64: b64 }
+          signatureBase64 = b64
         } catch { /* fallback */ }
       }
+
+      if (item.photoEvidenceUrl) {
+        try {
+          const res = await fetch(item.photoEvidenceUrl)
+          const blob = await res.blob()
+          const b64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+          photoBase64 = b64
+        } catch { /* fallback */ }
+      }
+
+      if (signatureBase64 || photoBase64) return { ...item, signatureBase64, photoBase64 }
       return item
     })
   )
@@ -632,7 +652,7 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
       if (hookData.section === 'body' && hookData.column.index === 7) {
         const rowIndex = hookData.row.index
         const item = itemsWithSigs[rowIndex]
-        if (!item?.signatureBase64) return
+        if (!item?.signatureBase64 && !item?.photoBase64) return
 
         const cell = hookData.cell
         const maxW = cell.width - 4
@@ -641,14 +661,30 @@ export async function generateNR06PDF(data: NR06PDFData): Promise<Blob> {
         const y = cell.y + 2
 
         try {
-          const imgProps = doc.getImageProperties(item.signatureBase64)
-          const ratio = imgProps.width / imgProps.height
-          let drawW = maxW, drawH = maxW / ratio
-          if (drawH > maxH) { drawH = maxH; drawW = maxH * ratio }
-          const dx = x + (maxW - drawW) / 2
-          const dy = y + (maxH - drawH) / 2
-          const fmt = item.signatureBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG'
-          doc.addImage(item.signatureBase64, fmt, dx, dy, drawW, drawH)
+          const drawImageFit = (imageBase64: string, areaX: number, areaY: number, areaW: number, areaH: number) => {
+            const imgProps = doc.getImageProperties(imageBase64)
+            const ratio = imgProps.width / imgProps.height
+            let drawW = areaW
+            let drawH = areaW / ratio
+            if (drawH > areaH) {
+              drawH = areaH
+              drawW = areaH * ratio
+            }
+            const dx = areaX + (areaW - drawW) / 2
+            const dy = areaY + (areaH - drawH) / 2
+            const fmt = imageBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG'
+            doc.addImage(imageBase64, fmt, dx, dy, drawW, drawH)
+          }
+
+          if (item.authMethod === 'manual_facial' && item.photoBase64 && item.signatureBase64) {
+            const photoW = Math.min(10, maxW * 0.34)
+            drawImageFit(item.photoBase64, x, y, photoW, maxH)
+            drawImageFit(item.signatureBase64, x + photoW + 2, y, maxW - photoW - 2, maxH)
+          } else if (item.signatureBase64) {
+            drawImageFit(item.signatureBase64, x, y, maxW, maxH)
+          } else if (item.photoBase64) {
+            drawImageFit(item.photoBase64, x, y, maxW, maxH)
+          }
         } catch { /* skip */ }
       }
     },

@@ -71,6 +71,12 @@ async function validateRemoteLink(linkToken: string | null, employeeId: string |
   return link.status === "completed" || link.status === "pending"
 }
 
+function getFileExtension(file: File) {
+  if (file.type === "image/png") return "png"
+  if (file.type === "image/webp") return "webp"
+  return "jpg"
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData()
@@ -119,6 +125,31 @@ export async function POST(request: Request) {
       .from("ppe_signatures")
       .getPublicUrl(storagePath)
 
+    let photoEvidenceUrl = String(formData.get("photo_evidence_url") || "") || null
+    let photoEvidenceStoragePath: string | null = null
+    const photoEvidenceFile = formData.get("photoEvidenceFile")
+    if (photoEvidenceFile instanceof File && photoEvidenceFile.size > 0) {
+      const evidencePath = `signed-documents/evidence/${documentType}/${Date.now()}_${sanitizeFileName(photoEvidenceFile.name || `foto.${getFileExtension(photoEvidenceFile)}`)}`
+      photoEvidenceStoragePath = evidencePath
+      const evidenceBuffer = await photoEvidenceFile.arrayBuffer()
+      const { error: evidenceUploadError } = await supabaseAdmin.storage
+        .from("ppe_signatures")
+        .upload(evidencePath, evidenceBuffer, {
+          contentType: photoEvidenceFile.type || "image/jpeg",
+          upsert: false,
+        })
+
+      if (evidenceUploadError) {
+        await supabaseAdmin.storage.from("ppe_signatures").remove([storagePath])
+        return NextResponse.json({ error: evidenceUploadError.message }, { status: 400 })
+      }
+
+      const { data: evidencePublicUrlData } = supabaseAdmin.storage
+        .from("ppe_signatures")
+        .getPublicUrl(evidencePath)
+      photoEvidenceUrl = evidencePublicUrlData.publicUrl
+    }
+
     const deliveryIds = parseJsonField<string[]>(formData.get("delivery_ids"), [])
       .filter((id) => typeof id === "string" && id.length > 0)
 
@@ -135,7 +166,7 @@ export async function POST(request: Request) {
       sha256_hash: sha256Hash.toLowerCase(),
       auth_method: String(formData.get("auth_method") || "") || null,
       signature_url: String(formData.get("signature_url") || "") || null,
-      photo_evidence_url: String(formData.get("photo_evidence_url") || "") || null,
+      photo_evidence_url: photoEvidenceUrl,
       ip_address: String(formData.get("ip_address") || "") || null,
       geo_location: String(formData.get("geo_location") || "") || null,
       user_agent: request.headers.get("user-agent"),
@@ -150,13 +181,15 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
+      const cleanupPaths = [storagePath, photoEvidenceStoragePath].filter((path): path is string => Boolean(path))
       if (isMissingAuditTable(error)) {
-        await supabaseAdmin.storage.from("ppe_signatures").remove([storagePath])
+        await supabaseAdmin.storage.from("ppe_signatures").remove(cleanupPaths)
         return NextResponse.json({
           error: "A tabela signed_documents ainda nao existe no Supabase. Rode o script signed_documents_audit.sql para ativar o arquivo juridico dos PDFs.",
         }, { status: 501 })
       }
 
+      await supabaseAdmin.storage.from("ppe_signatures").remove(cleanupPaths)
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 

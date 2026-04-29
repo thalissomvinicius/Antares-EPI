@@ -179,14 +179,29 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel, cancelLabel 
 
         // Draw detection overlay
         if (ctx) {
-          const dims = faceapi.matchDimensions(canvasRef.current, videoRef.current, true)
-          const resized = faceapi.resizeResults(detections, dims)
-          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
-          
-          const rBox = resized.detection.box
-          const cx = rBox.x + rBox.width / 2
-          const cy = rBox.y + rBox.height / 2
-          const radius = (rBox.width + rBox.height) / 3.5
+          const canvas = canvasRef.current
+          const displayWidth = canvas.clientWidth
+          const displayHeight = canvas.clientHeight
+          if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+            canvas.width = displayWidth
+            canvas.height = displayHeight
+          }
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+          const scale = Math.max(canvas.width / videoRef.current.videoWidth, canvas.height / videoRef.current.videoHeight)
+          const renderedWidth = videoRef.current.videoWidth * scale
+          const renderedHeight = videoRef.current.videoHeight * scale
+          const offsetX = (canvas.width - renderedWidth) / 2
+          const offsetY = (canvas.height - renderedHeight) / 2
+          const rBox = detections.detection.box
+          const boxX = offsetX + rBox.x * scale
+          const boxY = offsetY + rBox.y * scale
+          const boxW = rBox.width * scale
+          const boxH = rBox.height * scale
+          const mirroredX = canvas.width - boxX - boxW
+          const cx = mirroredX + boxW / 2
+          const cy = boxY + boxH / 2
+          const radius = Math.max(boxW, boxH) * 0.62
           const progress = Math.min(stabilityRef.current / STABILITY_REQUIRED, 1)
           
           // Background ring
@@ -381,7 +396,7 @@ export function FaceCamera({ onCapture, targetDescriptor, onCancel, cancelLabel 
             onPlay={handleVideoPlay}
             className={`w-full h-full object-cover transition-opacity duration-500 scale-x-[-1] face-camera-video ${!isCameraActive ? 'opacity-0' : 'opacity-100'}`}
           />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none scale-x-[-1] face-camera-mirror" />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none face-camera-mirror" />
           
           {/* Circular guide — fixed size to prevent distortion on mobile */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">

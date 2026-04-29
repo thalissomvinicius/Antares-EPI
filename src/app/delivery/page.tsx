@@ -378,7 +378,7 @@ export default function DeliveryPage() {
       const blob = await response.blob()
       const signatureFile = new File([blob], "signature.png", { type: "image/png" })
       const photoBase64 = authMethod === 'manual_facial' ? capturedPhotoBase64 || undefined : undefined
-      const persistedAuthMethod: 'manual' | 'facial' = authMethod === 'manual_facial' ? 'manual' : authMethod
+      const persistedAuthMethod: Delivery['auth_method'] = authMethod
 
       const savedDeliveries: Delivery[] = []
       const autoReturnedDeliveryIds: string[] = []
@@ -448,6 +448,7 @@ export default function DeliveryPage() {
           pdfBlob,
           authMethod,
           signatureUrl: savedDeliveries[0]?.signature_url,
+          photoEvidenceBase64: photoBase64,
           ipAddress,
           geoLocation: location,
           metadata: {

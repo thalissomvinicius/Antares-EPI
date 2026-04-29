@@ -19,6 +19,7 @@ type SignedDocumentArchivePayload = {
   authMethod?: string | null;
   signatureUrl?: string | null;
   photoEvidenceUrl?: string | null;
+  photoEvidenceBase64?: string | null;
   ipAddress?: string | null;
   geoLocation?: string | null;
   metadata?: Record<string, unknown>;
@@ -203,6 +204,20 @@ async function sha256Hex(blob: Blob): Promise<string> {
     .join("");
 }
 
+function dataUrlToFile(dataUrl: string, fileName: string): File {
+  const [header, data] = dataUrl.split(",");
+  const mimeMatch = header.match(/data:(.*?);base64/);
+  const mimeType = mimeMatch?.[1] || "image/jpeg";
+  const binary = atob(data || "");
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new File([bytes], fileName, { type: mimeType });
+}
+
 async function readResponseJson<T = unknown>(res: Response): Promise<T> {
   const text = await res.text();
   if (!text) return {} as T;
@@ -320,6 +335,9 @@ export const api = {
     if (payload.authMethod) formData.append("auth_method", payload.authMethod);
     if (payload.signatureUrl) formData.append("signature_url", payload.signatureUrl);
     if (payload.photoEvidenceUrl) formData.append("photo_evidence_url", payload.photoEvidenceUrl);
+    if (payload.photoEvidenceBase64) {
+      formData.append("photoEvidenceFile", dataUrlToFile(payload.photoEvidenceBase64, "photo_evidence.jpg"));
+    }
     if (payload.ipAddress) formData.append("ip_address", payload.ipAddress);
     if (payload.geoLocation) formData.append("geo_location", payload.geoLocation);
     if (payload.linkToken) formData.append("link_token", payload.linkToken);
@@ -784,7 +802,7 @@ export const api = {
         .select(`
           *,
           employee:employees(full_name, cpf, job_title),
-          ppe:ppes(name, ca_number, cost, lifespan_days),
+          ppe:ppes(name, ca_number, ca_expiry_date, cost, lifespan_days),
           workplace:workplaces(name)
         `)
         .order('delivery_date', { ascending: false })
@@ -801,7 +819,7 @@ export const api = {
         .select(`
           *,
           employee:employees(full_name, cpf, job_title, active, admission_date),
-          ppe:ppes(name, ca_number, cost, lifespan_days),
+          ppe:ppes(name, ca_number, ca_expiry_date, cost, lifespan_days),
           workplace:workplaces(name)
         `)
         .eq('employee_id', employeeId)

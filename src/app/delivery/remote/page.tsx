@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import SignatureCanvas from "react-signature-canvas"
 import { Camera, ExternalLink, FileDown, Loader2, ShieldAlert, Fingerprint, PenLine, ShieldCheck, UserCheck, Lock } from "lucide-react"
 import { api } from "@/services/api"
-import { Employee, PPE, Workplace } from "@/types/database"
+import { Delivery, Employee, PPE, Workplace } from "@/types/database"
 import { FaceCamera } from "@/components/ui/FaceCamera"
 import { generateDeliveryPDF } from "@/utils/pdfGenerator"
 import { COMPANY_CONFIG } from "@/config/company"
@@ -197,7 +197,7 @@ function RemoteDeliveryContent() {
       const blob = await response.blob()
       const signatureFile = new File([blob], "remote_signature.png", { type: "image/png" })
       const photoBase64 = authMethod === 'manual_facial' ? capturedPhotoBase64 || undefined : undefined
-      const persistedAuthMethod: 'manual' | 'facial' = authMethod === 'manual_facial' ? 'manual' : authMethod
+      const persistedAuthMethod: Delivery['auth_method'] = authMethod
 
       const formData = new FormData()
       formData.append('employee_id', employee.id)
@@ -265,6 +265,7 @@ function RemoteDeliveryContent() {
           pdfBlob,
           authMethod,
           signatureUrl: responseData.data?.signature_url,
+          photoEvidenceBase64: photoBase64,
           ipAddress,
           geoLocation: location,
           linkToken,

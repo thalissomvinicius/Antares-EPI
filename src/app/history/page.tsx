@@ -36,6 +36,16 @@ export default function HistoryPage() {
     fetchHistory()
   }, [])
 
+  const urlToBase64 = async (url: string) => {
+    const response = await fetch(url)
+    const blob = await response.blob()
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.readAsDataURL(blob)
+    })
+  }
+
   const handleDownloadPDF = async (rec: DeliveryWithRelations) => {
     if (!rec.signature_url) {
       toast.error("Este registro não possui assinatura digital.")
@@ -44,15 +54,27 @@ export default function HistoryPage() {
 
     try {
       setDownloadingId(rec.id)
+      const signedDocument = getSignedDocumentForDelivery(rec.id)
+
+      if (signedDocument?.document_url) {
+        const archivedResponse = await fetch(signedDocument.document_url)
+        const archivedBlob = await archivedResponse.blob()
+        openPdfDialog(archivedBlob, signedDocument.file_name || `Comprovante_${rec.id.slice(0, 8)}.pdf`, {
+          title: "Comprovante arquivado",
+          description: "Este e o PDF juridico original salvo no arquivo digital.",
+        })
+        toast.success(`PDF aberto: ${signedDocument.file_name}`)
+        return
+      }
       
       // 1. Converter URL da assinatura para Base64 (necessário para jsPDF)
-      const response = await fetch(rec.signature_url)
-      const blob = await response.blob()
-      const base64Signature = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.readAsDataURL(blob)
-      })
+      const base64Signature = await urlToBase64(rec.signature_url)
+      const photoBase64 = signedDocument?.photo_evidence_url
+        ? await urlToBase64(signedDocument.photo_evidence_url).catch(() => undefined)
+        : undefined
+      const authMethod = signedDocument?.auth_method === "manual_facial" || rec.auth_method === "manual_facial"
+        ? "manual_facial"
+        : (rec.signature_url.includes('bio_') || rec.signature_url.includes('emp_') || rec.auth_method === "facial") ? 'facial' : 'manual'
 
       // 2. Gerar o PDF
       const pdfBlob = await generateDeliveryPDF({
@@ -62,10 +84,12 @@ export default function HistoryPage() {
         workplaceName: rec.workplace?.name || "Sede",
         ppeName: rec.ppe?.name || "N/A",
         ppeCaNumber: rec.ppe?.ca_number || "N/A",
+        ppeCaExpiry: rec.ppe?.ca_expiry_date,
         quantity: rec.quantity,
         reason: rec.reason,
-        authMethod: (rec.signature_url.includes('bio_') || rec.signature_url.includes('emp_')) ? 'facial' : 'manual',
+        authMethod,
         signatureBase64: base64Signature,
+        photoBase64,
         ipAddress: rec.ip_address || "Remoto",
         validationHash: rec.id.slice(0, 8).toUpperCase()
       })

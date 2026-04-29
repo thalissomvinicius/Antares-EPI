@@ -94,6 +94,7 @@ export type DeliveryWithRelations = Delivery & {
   ppe?: {
     name: string;
     ca_number: string;
+    ca_expiry_date?: string;
     cost?: number;
     lifespan_days?: number;
   };
