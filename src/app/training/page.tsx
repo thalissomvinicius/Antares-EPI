@@ -19,6 +19,8 @@ type RemoteSignatureEvidence = {
   authMethod?: 'manual' | 'facial' | 'manual_facial'
 }
 
+type RemoteLinkStatus = "idle" | "pending" | "completed" | "expired"
+
 export default function TrainingPage() {
   const { openPdfDialog, pdfActionDialog } = usePdfActionDialog()
   const [trainings, setTrainings] = useState<TrainingWithRelations[]>([])
@@ -48,6 +50,11 @@ export default function TrainingPage() {
   const [instructorPhotoBase64, setInstructorPhotoBase64] = useState<string | null>(null)
   const [participantRemoteToken, setParticipantRemoteToken] = useState<string | null>(null)
   const [instructorRemoteToken, setInstructorRemoteToken] = useState<string | null>(null)
+  const [participantRemoteStatus, setParticipantRemoteStatus] = useState<RemoteLinkStatus>("idle")
+  const [instructorRemoteStatus, setInstructorRemoteStatus] = useState<RemoteLinkStatus>("idle")
+  const [participantRemoteExpiresAt, setParticipantRemoteExpiresAt] = useState<string | null>(null)
+  const [instructorRemoteExpiresAt, setInstructorRemoteExpiresAt] = useState<string | null>(null)
+  const [remoteWaitHours, setRemoteWaitHours] = useState(24)
   const [isCheckingRemoteSignatures, setIsCheckingRemoteSignatures] = useState(false)
   const [isFaceCameraTstOpen, setIsFaceCameraTstOpen] = useState(false)
   const tstSigCanvas = useRef<SignatureCanvas | null>(null)
@@ -58,6 +65,23 @@ export default function TrainingPage() {
   const getTrainedEmployeeDescriptor = () => {
     const descriptor = getTrainedEmployee()?.face_descriptor
     return descriptor && descriptor.length > 0 ? new Float32Array(descriptor) : undefined
+  }
+
+  const formatRemoteExpiry = (value: string | null) => {
+    if (!value) return ""
+    return new Date(value).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const renderRemoteStatusText = (status: RemoteLinkStatus, expiresAt: string | null, label: string) => {
+    if (status === "completed") return `Assinatura remota do ${label} concluida.`
+    if (status === "expired") return `Link do ${label} expirado. Gere um novo link.`
+    if (status === "pending") return `Aguardando assinatura do ${label} ate ${formatRemoteExpiry(expiresAt)}.`
+    return ""
   }
 
   const loadData = async () => {
@@ -231,6 +255,10 @@ export default function TrainingPage() {
     setInstructorPhotoBase64(null)
     setParticipantRemoteToken(null)
     setInstructorRemoteToken(null)
+    setParticipantRemoteStatus("idle")
+    setInstructorRemoteStatus("idle")
+    setParticipantRemoteExpiresAt(null)
+    setInstructorRemoteExpiresAt(null)
     setTstAuthMethod('manual')
     setCustomTrainingName("")
     setFormData(prev => ({ ...prev, training_name: "Uso e Guarda de EPI (NR-06)" }))
@@ -244,6 +272,10 @@ export default function TrainingPage() {
     setInstructorPhotoBase64(null)
     setParticipantRemoteToken(null)
     setInstructorRemoteToken(null)
+    setParticipantRemoteStatus("idle")
+    setInstructorRemoteStatus("idle")
+    setParticipantRemoteExpiresAt(null)
+    setInstructorRemoteExpiresAt(null)
     setTstRole(emp.job_title || "Técnico de Segurança do Trabalho")
     
     if (emp.photo_url) {
@@ -281,6 +313,7 @@ export default function TrainingPage() {
       const data = await api.createRemoteLink({
         employee_id: trainedEmployee.id,
         type: "training_signature",
+        expires_hours: remoteWaitHours,
         data: {
           trainingName: finalTrainingName || formData.training_name,
           completionDate: formData.completion_date,
@@ -290,8 +323,10 @@ export default function TrainingPage() {
 
       const url = `${baseUrl}/training/remote?t=${data.link.token}`
       setParticipantRemoteToken(data.link.token)
+      setParticipantRemoteStatus("pending")
+      setParticipantRemoteExpiresAt(data.link.expires_at)
       await navigator.clipboard.writeText(url)
-      toast.success("Link de assinatura do treinamento copiado. Valido por 24h e uso unico.")
+      toast.success(`Link de assinatura do treinamento copiado. Valido por ${remoteWaitHours}h e uso unico.`)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro ao gerar link."
       toast.error(message)
@@ -310,6 +345,7 @@ export default function TrainingPage() {
       const data = await api.createRemoteLink({
         employee_id: tstSelectedEmployee.id,
         type: "training_signature",
+        expires_hours: remoteWaitHours,
         data: {
           trainingName: `Instrutor - ${finalTrainingName || formData.training_name}`,
           completionDate: formData.completion_date,
@@ -319,8 +355,10 @@ export default function TrainingPage() {
 
       const url = `${baseUrl}/training/remote?t=${data.link.token}`
       setInstructorRemoteToken(data.link.token)
+      setInstructorRemoteStatus("pending")
+      setInstructorRemoteExpiresAt(data.link.expires_at)
       await navigator.clipboard.writeText(url)
-      toast.success("Link de assinatura do instrutor copiado. Valido por 24h e uso unico.")
+      toast.success(`Link de assinatura do instrutor copiado. Valido por ${remoteWaitHours}h e uso unico.`)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro ao gerar link."
       toast.error(message)
@@ -343,12 +381,31 @@ export default function TrainingPage() {
   const checkRemoteSignature = useCallback(async (token: string, target: "participant" | "instructor") => {
     const res = await fetch(`/api/remote-links?token=${token}&include_completed=1`)
     const payload = await res.json()
-    if (!res.ok || payload.link?.status !== "completed") return false
+    if (!res.ok) {
+      if (payload.status === "expired") {
+        if (target === "participant") setParticipantRemoteStatus("expired")
+        if (target === "instructor") setInstructorRemoteStatus("expired")
+      }
+      return false
+    }
+
+    if (payload.link?.expires_at) {
+      if (target === "participant") setParticipantRemoteExpiresAt(payload.link.expires_at)
+      if (target === "instructor") setInstructorRemoteExpiresAt(payload.link.expires_at)
+    }
+
+    if (payload.link?.status !== "completed") {
+      if (target === "participant") setParticipantRemoteStatus("pending")
+      if (target === "instructor") setInstructorRemoteStatus("pending")
+      return false
+    }
 
     const evidence = payload.link.data as RemoteSignatureEvidence | null
     if (!evidence?.signatureBase64) return false
 
     applyRemoteSignature(target, evidence)
+    if (target === "participant") setParticipantRemoteStatus("completed")
+    if (target === "instructor") setInstructorRemoteStatus("completed")
     return true
   }, [applyRemoteSignature])
 
@@ -727,6 +784,26 @@ export default function TrainingPage() {
                       </button>
                     </div>
 
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tempo de espera do link</p>
+                        <p className="text-[10px] text-slate-400 font-bold">Depois disso, o link expira se nao for assinado.</p>
+                      </div>
+                      <select
+                        value={remoteWaitHours}
+                        onChange={(event) => setRemoteWaitHours(Number(event.target.value))}
+                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-700"
+                        title="Tempo de espera do link"
+                      >
+                        <option value={1}>1h</option>
+                        <option value={4}>4h</option>
+                        <option value={8}>8h</option>
+                        <option value={12}>12h</option>
+                        <option value={24}>24h</option>
+                        <option value={48}>48h</option>
+                      </select>
+                    </div>
+
                     {tstAuthMethod === 'manual_facial' && isFaceCameraTstOpen && (
                       <div className="space-y-3">
                         <FaceCamera
@@ -813,8 +890,14 @@ export default function TrainingPage() {
                           Gerar link para assinatura do colaborador
                         </button>
                         {participantRemoteToken && (
-                          <div className={`rounded-xl border p-3 text-[10px] font-black uppercase tracking-widest ${tstSignatureBase64 ? "bg-green-50 border-green-200 text-green-700" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
-                            {tstSignatureBase64 ? "Assinatura remota do colaborador recebida." : "Aguardando assinatura remota do colaborador..."}
+                          <div className={`rounded-xl border p-3 text-[10px] font-black uppercase tracking-widest ${
+                            participantRemoteStatus === "completed" || tstSignatureBase64
+                              ? "bg-green-50 border-green-200 text-green-700"
+                              : participantRemoteStatus === "expired"
+                                ? "bg-red-50 border-red-200 text-red-700"
+                                : "bg-blue-50 border-blue-200 text-blue-700"
+                          }`}>
+                            {renderRemoteStatusText(tstSignatureBase64 ? "completed" : participantRemoteStatus, participantRemoteExpiresAt, "colaborador")}
                           </div>
                         )}
                       </div>
@@ -872,6 +955,26 @@ export default function TrainingPage() {
                       <p className="text-xs font-bold text-slate-500 mt-0.5">{tstRole}</p>
                     </div>
 
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tempo de espera do link</p>
+                        <p className="text-[10px] text-slate-400 font-bold">Depois disso, o link expira se nao for assinado.</p>
+                      </div>
+                      <select
+                        value={remoteWaitHours}
+                        onChange={(event) => setRemoteWaitHours(Number(event.target.value))}
+                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-700"
+                        title="Tempo de espera do link"
+                      >
+                        <option value={1}>1h</option>
+                        <option value={4}>4h</option>
+                        <option value={8}>8h</option>
+                        <option value={12}>12h</option>
+                        <option value={24}>24h</option>
+                        <option value={48}>48h</option>
+                      </select>
+                    </div>
+
                     <div className="space-y-3">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instrutor - assine abaixo:</p>
                       {instructorSignatureBase64 ? (
@@ -926,8 +1029,14 @@ export default function TrainingPage() {
                         Gerar link para assinatura do instrutor
                       </button>
                       {instructorRemoteToken && (
-                        <div className={`rounded-xl border p-3 text-[10px] font-black uppercase tracking-widest ${instructorSignatureBase64 ? "bg-green-50 border-green-200 text-green-700" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
-                          {instructorSignatureBase64 ? "Assinatura remota do instrutor recebida." : "Aguardando assinatura remota do instrutor..."}
+                        <div className={`rounded-xl border p-3 text-[10px] font-black uppercase tracking-widest ${
+                          instructorRemoteStatus === "completed" || instructorSignatureBase64
+                            ? "bg-green-50 border-green-200 text-green-700"
+                            : instructorRemoteStatus === "expired"
+                              ? "bg-red-50 border-red-200 text-red-700"
+                              : "bg-blue-50 border-blue-200 text-blue-700"
+                        }`}>
+                          {renderRemoteStatusText(instructorSignatureBase64 ? "completed" : instructorRemoteStatus, instructorRemoteExpiresAt, "instrutor")}
                         </div>
                       )}
                       {(participantRemoteToken || instructorRemoteToken) && (

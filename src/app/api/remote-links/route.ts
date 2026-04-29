@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
 
     if (type !== "training_signature") {
       await supabaseAdmin
-      .from("remote_links")
-      .update({ status: "expired" })
-      .eq("employee_id", employee_id)
-      .eq("type", dbType)
+        .from("remote_links")
+        .update({ status: "expired" })
+        .eq("employee_id", employee_id)
+        .eq("type", dbType)
         .eq("status", "pending")
     }
 

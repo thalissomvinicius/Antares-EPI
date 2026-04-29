@@ -429,7 +429,7 @@ export const api = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    return data as { link: { token: string } };
+    return data as { link: { token: string; status: string; expires_at: string } };
   },
 
   // --- Canteiros (Workplaces) ---
